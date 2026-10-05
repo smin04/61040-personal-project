@@ -84,4 +84,4 @@ After the activity happens, the user can choose **Mark completed**, closing the 
 **Key design point:** WeShould does not replace ticketing or reservations. It gets people to the point where they are ready to use those tools.
 
 ---
-## Note: The additional pngs in the images folder are some figma prototypes I was working on. Though they're not complete/not direct representations of the original sketches, I thought it would be fun to visualize what the app could actually look like. :)
+## Note: The additional pngs in the images folder are some figma prototypes I was working on. Though they're not complete/not direct representations of the original sketches, I thought it would be fun to visualize what the app could actually look like :)
