@@ -18,7 +18,11 @@ Josie taps it and returns to what she was doing.
 
 She does not choose a date. She does not invite Marie. She does not open a calendar or create an event. If the activity had not been recognized automatically, she could have entered a short description manually and made the same **I'd Go** decision.
 
-That lack of immediate planning is intentional. At the moment of discovery, Josie is willing to answer one question—*would I actually do this?*—but not necessarily willing to organize the outing.
+That lack of immediate planning is intentional. At the moment of discovery, Josie is willing to answer one question
+
+*would I actually do this?* 
+
+but not necessarily willing to organize the outing.
 
 A few days later, Marie independently encounters Wally's Cafe and also saves it to WeShould with **I'd Go**. Because both users have now expressed willingness toward the same underlying activity, Wally's appears in the **You both would** section of Josie's home screen in [Sketch 3](ui-sketches.md#sketch3).
 
