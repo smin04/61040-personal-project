@@ -1,0 +1,64 @@
+# Sessioning
+
+## Purpose
+
+Keep a short-lived opaque session for an external subject so authenticated access can end without changing that subject's identity.
+
+## Principle
+
+A subject starts a session. While the session remains active, it resolves to that subject. Ending the session makes it inactive. Unknown, ended, or expired sessions cannot be used to establish a current subject.
+
+## Types
+
+```types
+external Subject
+  The external identity represented by a session.
+```
+
+## State
+
+```state
+a set of Sessions with
+  a subject Subject
+  an expiresAt DateTime
+```
+
+## Actions
+
+```actions
+start(subject: Subject) : returns (session: Session, expiresAt: DateTime)
+  where true
+  then
+    delete every expired session
+    add a new opaque session for subject expiring 30 minutes from now
+    returns session, expiresAt
+
+current(session: Session) : returns (subject: Subject)
+  where session is unknown, ended, or expired
+  then
+    delete the session if it is expired
+    refuses UNKNOWN_SESSION "This session is not active."
+  where session is active
+  then
+    bind subject to the Session's subject
+    returns subject
+
+end(session: Session) : returns (ended: Flag)
+  where session is unknown, ended, or expired
+  then
+    delete the session if it is expired
+    refuses UNKNOWN_SESSION "This session is not active."
+  where session is active
+  then
+    delete session
+    set ended to true
+    returns ended
+```
+
+## Queries
+
+```queries
+_active(session: Session) : optional (subject: Subject, expiresAt: DateTime)
+  Answers the session's subject and expiration when the session is active.
+  Answers no row for an unknown, ended, or expired session.
+```
