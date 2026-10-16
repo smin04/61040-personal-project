@@ -11,7 +11,7 @@ Application.Connections.DeclineConnection at /connections/decline
 Application.Connections.Disconnect at /connections/disconnect
 ```
 
-A signed-in user may [express willingness toward an activity](reaction:Application.Intentions.ExpressIntention) by supplying its name and URL. Resolving maps the normalized URL to a stable item identity and stores the item's human-readable name and canonical reference before Intending records the user's willingness toward that item.
+A signed-in user may [express willingness toward an activity](reaction:Application.Intentions.ExpressIntention) by supplying its name and URL. Resolving first maps the normalized URL to an Item, then uses the supplied activity name to either describe that Item or converge the reference onto an existing Item with the same normalized name. Intending records the user's willingness toward the resulting stable Item.
 
 ```endpoints
 Application.Intentions.ExpressIntention at /intentions/express
@@ -28,7 +28,7 @@ Application.Plans.CancelPlan at /plans/cancel
 Application.Plans.CompletePlan at /plans/complete
 ```
 
-The [home endpoint](reaction:Application.Home.GetHome) uses the [home former](former:Application.Home.Home) to return the current user's connections, pending requests, intentions, shared intentions, and plans together. Activity-bearing records include both their stable item identity and their human-readable name and canonical URL.
+The [home endpoint](reaction:Application.Home.GetHome) uses the [home former](former:Application.Home.Home) to return the current user's connections, pending requests, intentions, shared intentions, and plans together. Activity-bearing records include both their stable item identity and their human-readable name and canonical URL. Plan records also include the organizer and the current user's response so the interface can distinguish the proposer from a pending participant.
 
 ```endpoints
 Application.Home.GetHome at /home
