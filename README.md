@@ -23,9 +23,9 @@ The beta intentionally keeps discovery outside the app. Users enter an activity 
 - [Saved P3 check output](tests/output/p3-check-results.txt)
 - [P2 implementation notes](design/p2-notes.md)
 
-**Deployed app:** `tbd'
+**Deployed app:** [https://weshould.mit-sdg.dev]
 
-**Narrated screen recording:** `tbd'
+**Narrated screen recording:** [https://youtu.be/8wAAYRWQ7to]
 
 ## Design
 
