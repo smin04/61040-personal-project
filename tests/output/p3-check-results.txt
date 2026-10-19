@@ -1,0 +1,4 @@
+$ sync-engine artifacts pin
+$ sync-engine check && sync-engine artifacts check && tsc --noEmit
+Concept action/query source check passed for 6 concepts.
+Application diagnostic check passed with 15 advisories (use --show-advisories to list them).

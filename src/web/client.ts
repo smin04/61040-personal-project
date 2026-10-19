@@ -57,10 +57,245 @@ interface Home {
   plans: Plan[];
 }
 
+const FRIENDLY_ERRORS: Record<string, string> = {
+  INVALID_USERNAME:
+    "Use 3 to 32 letters, numbers, underscores, or hyphens for your username.",
+  WEAK_PASSWORD:
+    "Password must be at least 8 characters.",
+  USERNAME_TAKEN:
+    "That username is already taken. Try another one.",
+  INVALID_CREDENTIALS:
+    "The username or password is incorrect.",
+  UNKNOWN_SESSION:
+    "Your session expired. Please sign in again.",
+  CANNOT_CONNECT_SELF:
+    "You cannot connect with yourself.",
+  ALREADY_CONNECTED:
+    "You are already connected with that person.",
+  REQUEST_EXISTS:
+    "You already sent this person a request.",
+  REQUEST_NOT_FOUND:
+    "That connection request no longer exists.",
+  NOT_REQUEST_RECIPIENT:
+    "Only the person who received the request can respond to it.",
+  CONNECTION_NOT_FOUND:
+    "That connection no longer exists.",
+  NOT_CONNECTION_MEMBER:
+    "You are not part of that connection.",
+  ALREADY_INTENDING:
+    "You already saved that activity.",
+  INTENTION_NOT_FOUND:
+    "That saved activity is no longer active.",
+  ORGANIZER_NOT_PARTICIPANT:
+    "The organizer has to be included in the plan.",
+  TOO_FEW_PARTICIPANTS:
+    "A plan needs at least two people.",
+  PLAN_NOT_FOUND:
+    "That plan no longer exists.",
+  PLAN_NOT_PROPOSED:
+    "That plan is no longer waiting for responses.",
+  NOT_PARTICIPANT:
+    "Only someone in the plan can do that.",
+  INVALID_RESPONSE:
+    "Choose Accept or Decline.",
+  NOT_ALL_ACCEPTED:
+    "The plan cannot be committed until everyone accepts.",
+  PLAN_CLOSED:
+    "That plan is already closed.",
+  PLAN_NOT_COMMITTED:
+    "Only a committed plan can be marked done.",
+};
+
 let session =
   sessionStorage.getItem(
     "weshould-session",
   );
+
+function readableError(
+  path: string,
+  raw: unknown,
+  body: Record<string, unknown>,
+): string {
+  if (typeof raw !== "string") {
+    return "Something went wrong. Please try again.";
+  }
+
+  const exact =
+    FRIENDLY_ERRORS[raw];
+
+  if (exact) {
+    return exact;
+  }
+
+  if (
+    path === "/auth/register" &&
+    raw === "CONFLICT"
+  ) {
+    return "That username is already taken. Try another one.";
+  }
+
+  if (
+    path === "/auth/register" &&
+    raw === "INVALID_REQUEST"
+  ) {
+    const suppliedUsername =
+      typeof body.username === "string"
+        ? body.username
+        : "";
+
+    const suppliedPassword =
+      typeof body.password === "string"
+        ? body.password
+        : "";
+
+    if (
+      !/^[A-Za-z0-9_-]{3,32}$/.test(
+        suppliedUsername,
+      )
+    ) {
+      return "Use 3 to 32 letters, numbers, underscores, or hyphens for your username.";
+    }
+
+    if (
+      suppliedPassword.length < 8 ||
+      suppliedPassword.length > 128
+    ) {
+      return "Password must be between 8 and 128 characters.";
+    }
+
+    return "Check your username and password and try again.";
+  }
+
+  if (
+    path === "/auth/sign-in" &&
+    raw === "UNAUTHORIZED"
+  ) {
+    return "The username or password is incorrect.";
+  }
+
+  if (
+    path === "/connections/request" &&
+    raw === "CONFLICT"
+  ) {
+    return "You are already connected with this person or already sent them a request.";
+  }
+
+  if (
+    path === "/connections/request" &&
+    raw === "INVALID_REQUEST"
+  ) {
+    return "That connection request is not valid. Check the username and try again.";
+  }
+
+  if (
+    (
+      path === "/connections/accept" ||
+      path === "/connections/decline"
+    ) &&
+    raw === "NOT_FOUND"
+  ) {
+    return "That connection request no longer exists.";
+  }
+
+  if (
+    path === "/connections/disconnect" &&
+    raw === "NOT_FOUND"
+  ) {
+    return "That connection no longer exists.";
+  }
+
+  if (
+    path === "/connections/disconnect" &&
+    raw === "FORBIDDEN"
+  ) {
+    return "You are not part of that connection.";
+  }
+
+  if (
+    path === "/intentions/express" &&
+    raw === "CONFLICT"
+  ) {
+    return "You already saved this activity.";
+  }
+
+  if (
+    path === "/intentions/express" &&
+    raw === "INVALID_REQUEST"
+  ) {
+    return "Add an activity name and a full http or https link.";
+  }
+
+  if (
+    path === "/plans/propose" &&
+    raw === "INVALID_REQUEST"
+  ) {
+    return "Choose a shared activity and enter a time for the plan.";
+  }
+
+  if (
+    path === "/plans/respond" &&
+    raw === "CONFLICT"
+  ) {
+    return "That plan is no longer waiting for responses.";
+  }
+
+  if (
+    path === "/plans/respond" &&
+    raw === "FORBIDDEN"
+  ) {
+    return "Only someone included in the plan can respond.";
+  }
+
+  if (
+    path === "/plans/cancel" &&
+    raw === "CONFLICT"
+  ) {
+    return "That plan is already closed.";
+  }
+
+  if (
+    path === "/plans/cancel" &&
+    raw === "FORBIDDEN"
+  ) {
+    return "Only someone included in the plan can cancel it.";
+  }
+
+  if (
+    path === "/plans/complete" &&
+    raw === "CONFLICT"
+  ) {
+    return "This plan cannot be marked done yet. It may still be waiting for acceptance or already be closed.";
+  }
+
+  if (
+    path === "/plans/complete" &&
+    raw === "FORBIDDEN"
+  ) {
+    return "Only someone included in the plan can mark it done.";
+  }
+
+  if (raw === "UNAUTHORIZED") {
+    return "Your session expired. Please sign in again.";
+  }
+
+  if (raw === "FORBIDDEN") {
+    return "You do not have permission to do that.";
+  }
+
+  if (raw === "NOT_FOUND") {
+    return "That item could not be found. Refresh and try again.";
+  }
+
+  if (raw === "CONFLICT") {
+    return "That action conflicts with the current state. Refresh and try again.";
+  }
+
+  if (raw === "INVALID_REQUEST") {
+    return "Some of that information is invalid. Check the form and try again.";
+  }
+
+  return "Something went wrong. Please try again.";
+}
 
 async function api(
   path: string,
@@ -83,12 +318,10 @@ async function api(
       `/api${path}`,
       {
         method: "POST",
-
         headers: {
           "Content-Type":
             "application/json",
         },
-
         body: JSON.stringify(
           requestBody,
         ),
@@ -103,13 +336,30 @@ async function api(
 
   if (!response.ok) {
     throw new Error(
-      typeof result.error === "string"
-        ? result.error
-        : "Something went wrong.",
+      readableError(
+        path,
+        result.error,
+        requestBody,
+      ),
     );
   }
 
   return result;
+}
+
+function validHttpUrl(
+  value: string,
+): boolean {
+  try {
+    const url = new URL(value);
+
+    return (
+      url.protocol === "http:" ||
+      url.protocol === "https:"
+    );
+  } catch {
+    return false;
+  }
 }
 
 const app = createApp({
@@ -121,6 +371,11 @@ const app = createApp({
       ref<string | null>(null);
 
     const error = ref("");
+    const authError = ref("");
+    const captureError = ref("");
+    const connectionError = ref("");
+    const planError = ref("");
+    const notice = ref("");
     const loading = ref(false);
 
     const connectionUsername =
@@ -146,20 +401,96 @@ const app = createApp({
     let refreshTimer:
       number | undefined;
 
+    let noticeTimer:
+      number | undefined;
+
+    function showNotice(
+      message: string,
+    ) {
+      notice.value = message;
+
+      if (
+        noticeTimer !== undefined
+      ) {
+        window.clearTimeout(
+          noticeTimer,
+        );
+      }
+
+      noticeTimer =
+        window.setTimeout(
+          () => {
+            notice.value = "";
+          },
+          3200,
+        );
+    }
+
+    type ErrorScope =
+      | "global"
+      | "auth"
+      | "capture"
+      | "connection"
+      | "plan";
+
+    function clearScopedError(
+      scope: ErrorScope,
+    ) {
+      if (scope === "auth") {
+        authError.value = "";
+      } else if (scope === "capture") {
+        captureError.value = "";
+      } else if (scope === "connection") {
+        connectionError.value = "";
+      } else if (scope === "plan") {
+        planError.value = "";
+      } else {
+        error.value = "";
+      }
+    }
+
+    function setScopedError(
+      scope: ErrorScope,
+      message: string,
+    ) {
+      if (scope === "auth") {
+        authError.value = message;
+      } else if (scope === "capture") {
+        captureError.value = message;
+      } else if (scope === "connection") {
+        connectionError.value = message;
+      } else if (scope === "plan") {
+        planError.value = message;
+      } else {
+        error.value = message;
+      }
+    }
+
     async function run(
       action: () => Promise<void>,
+      successMessage = "",
+      scope: ErrorScope = "global",
     ) {
       error.value = "";
+      clearScopedError(scope);
+      notice.value = "";
       loading.value = true;
 
       try {
         await action();
-        error.value = "";
+
+        if (successMessage) {
+          showNotice(
+            successMessage,
+          );
+        }
       } catch (caught) {
-        error.value =
+        setScopedError(
+          scope,
           caught instanceof Error
             ? caught.message
-            : "Something went wrong.";
+            : "Something went wrong. Please try again.",
+        );
       } finally {
         loading.value = false;
       }
@@ -223,65 +554,91 @@ const app = createApp({
     }
 
     async function register() {
-      await run(async () => {
-        const result =
-          await api(
-            "/auth/register",
-            {
-              username:
-                username.value,
+      await run(
+        async () => {
+          const trimmedUsername =
+            username.value.trim();
 
-              password:
-                password.value,
-            },
+          if (
+            !/^[A-Za-z0-9_-]{3,32}$/.test(
+              trimmedUsername,
+            )
+          ) {
+            throw new Error(
+              "Use 3 to 32 letters, numbers, underscores, or hyphens for your username.",
+            );
+          }
+
+          if (
+            password.value.length < 8 ||
+            password.value.length > 128
+          ) {
+            throw new Error(
+              "Password must be between 8 and 128 characters.",
+            );
+          }
+
+          const result =
+            await api(
+              "/auth/register",
+              {
+                username:
+                  trimmedUsername,
+                password:
+                  password.value,
+              },
+            );
+
+          session = result.session;
+
+          sessionStorage.setItem(
+            "weshould-session",
+            session!,
           );
 
-        session =
-          result.session;
+          signedInUser.value =
+            result.account;
 
-        sessionStorage.setItem(
-          "weshould-session",
-          session!,
-        );
+          password.value = "";
 
-        signedInUser.value =
-          result.account;
-
-        password.value = "";
-
-        await loadHome();
-      });
+          await loadHome();
+        },
+        "Account created.",
+        "auth",
+      );
     }
 
     async function signIn() {
-      await run(async () => {
-        const result =
-          await api(
-            "/auth/sign-in",
-            {
-              username:
-                username.value,
+      await run(
+        async () => {
+          const result =
+            await api(
+              "/auth/sign-in",
+              {
+                username:
+                  username.value.trim(),
+                password:
+                  password.value,
+              },
+            );
 
-              password:
-                password.value,
-            },
+          session = result.session;
+
+          sessionStorage.setItem(
+            "weshould-session",
+            session!,
           );
 
-        session =
-          result.session;
+          signedInUser.value =
+            result.account;
 
-        sessionStorage.setItem(
-          "weshould-session",
-          session!,
-        );
+          password.value = "";
 
-        signedInUser.value =
-          result.account;
-
-        password.value = "";
-
-        await loadHome();
-      });
+          await loadHome();
+        },
+        "Signed in.",
+        "auth",
+      );
     }
 
     async function signOut() {
@@ -304,85 +661,137 @@ const app = createApp({
     }
 
     async function requestConnection() {
-      await run(async () => {
-        await api(
-          "/connections/request",
-          {
-            recipient:
-              connectionUsername.value,
-          },
-        );
+      await run(
+        async () => {
+          const recipient =
+            connectionUsername.value.trim();
 
-        connectionUsername.value =
-          "";
+          if (!recipient) {
+            throw new Error(
+              "Enter your friend's username.",
+            );
+          }
 
-        await loadHome();
-      });
+          if (
+            signedInUser.value &&
+            recipient.toLowerCase() ===
+              signedInUser.value.toLowerCase()
+          ) {
+            throw new Error(
+              "You cannot connect with yourself.",
+            );
+          }
+
+          await api(
+            "/connections/request",
+            {
+              recipient,
+            },
+          );
+
+          connectionUsername.value = "";
+
+          await loadHome();
+        },
+        "Connection request sent.",
+        "connection",
+      );
     }
 
     async function acceptConnection(
       request: string,
     ) {
-      await run(async () => {
-        await api(
-          "/connections/accept",
-          {
-            request,
-          },
-        );
+      await run(
+        async () => {
+          await api(
+            "/connections/accept",
+            {
+              request,
+            },
+          );
 
-        await loadHome();
-      });
+          await loadHome();
+        },
+        "Connected.",
+        "connection",
+      );
     }
 
     async function declineConnection(
       request: string,
     ) {
-      await run(async () => {
-        await api(
-          "/connections/decline",
-          {
-            request,
-          },
-        );
+      await run(
+        async () => {
+          await api(
+            "/connections/decline",
+            {
+              request,
+            },
+          );
 
-        await loadHome();
-      });
+          await loadHome();
+        },
+        "Request declined.",
+        "connection",
+      );
     }
 
     async function disconnect(
       connection: string,
     ) {
-      await run(async () => {
-        await api(
-          "/connections/disconnect",
-          {
-            connection,
-          },
-        );
+      await run(
+        async () => {
+          await api(
+            "/connections/disconnect",
+            {
+              connection,
+            },
+          );
 
-        await loadHome();
-      });
+          await loadHome();
+        },
+        "Connection removed.",
+        "connection",
+      );
     }
 
     async function expressIntention() {
-      await run(async () => {
-        await api(
-          "/intentions/express",
-          {
-            name:
-              activityName.value,
+      await run(
+        async () => {
+          const name =
+            activityName.value.trim();
 
-            reference:
-              activityUrl.value,
-          },
-        );
+          const reference =
+            activityUrl.value.trim();
 
-        activityName.value = "";
-        activityUrl.value = "";
+          if (!name) {
+            throw new Error(
+              "Give the activity a name.",
+            );
+          }
 
-        await loadHome();
-      });
+          if (!validHttpUrl(reference)) {
+            throw new Error(
+              "Paste a full link starting with http:// or https://.",
+            );
+          }
+
+          await api(
+            "/intentions/express",
+            {
+              name,
+              reference,
+            },
+          );
+
+          activityName.value = "";
+          activityUrl.value = "";
+
+          await loadHome();
+        },
+        "Saved to your I'd Go list.",
+        "capture",
+      );
     }
 
     function choosePlan(
@@ -398,6 +807,7 @@ const app = createApp({
         shared.peer;
 
       planTime.value = "";
+      planError.value = "";
 
       window.requestAnimationFrame(
         () => {
@@ -418,40 +828,49 @@ const app = createApp({
       selectedPlanName.value = "";
       selectedPlanPeer.value = "";
       planTime.value = "";
+      planError.value = "";
     }
 
     async function proposePlan() {
-      await run(async () => {
-        if (
-          !signedInUser.value ||
-          !selectedPlanItem.value ||
-          !selectedPlanPeer.value
-        ) {
-          throw new Error(
-            "Choose a shared activity first.",
+      await run(
+        async () => {
+          if (
+            !signedInUser.value ||
+            !selectedPlanItem.value ||
+            !selectedPlanPeer.value
+          ) {
+            throw new Error(
+              "Choose a shared activity first.",
+            );
+          }
+
+          if (!planTime.value.trim()) {
+            throw new Error(
+              "Add a time for the plan.",
+            );
+          }
+
+          await api(
+            "/plans/propose",
+            {
+              item:
+                selectedPlanItem.value,
+              participants: [
+                signedInUser.value,
+                selectedPlanPeer.value,
+              ],
+              time:
+                planTime.value.trim(),
+            },
           );
-        }
 
-        await api(
-          "/plans/propose",
-          {
-            item:
-              selectedPlanItem.value,
+          clearPlanDraft();
 
-            participants: [
-              signedInUser.value,
-              selectedPlanPeer.value,
-            ],
-
-            time:
-              planTime.value,
-          },
-        );
-
-        clearPlanDraft();
-
-        await loadHome();
-      });
+          await loadHome();
+        },
+        "Plan proposed.",
+        "plan",
+      );
     }
 
     async function respondToPlan(
@@ -460,47 +879,61 @@ const app = createApp({
         | "ACCEPTED"
         | "DECLINED",
     ) {
-      await run(async () => {
-        await api(
-          "/plans/respond",
-          {
-            plan,
-            response,
-          },
-        );
+      await run(
+        async () => {
+          await api(
+            "/plans/respond",
+            {
+              plan,
+              response,
+            },
+          );
 
-        await loadHome();
-      });
+          await loadHome();
+        },
+        response === "ACCEPTED"
+          ? "You're in."
+          : "Plan declined.",
+        "plan",
+      );
     }
 
     async function cancelPlan(
       plan: string,
     ) {
-      await run(async () => {
-        await api(
-          "/plans/cancel",
-          {
-            plan,
-          },
-        );
+      await run(
+        async () => {
+          await api(
+            "/plans/cancel",
+            {
+              plan,
+            },
+          );
 
-        await loadHome();
-      });
+          await loadHome();
+        },
+        "Plan cancelled. The underlying idea is still saved.",
+        "plan",
+      );
     }
 
     async function completePlan(
       plan: string,
     ) {
-      await run(async () => {
-        await api(
-          "/plans/complete",
-          {
-            plan,
-          },
-        );
+      await run(
+        async () => {
+          await api(
+            "/plans/complete",
+            {
+              plan,
+            },
+          );
 
-        await loadHome();
-      });
+          await loadHome();
+        },
+        "Done. That idea has moved from someday to did it.",
+        "plan",
+      );
     }
 
     function displayReference(
@@ -510,14 +943,12 @@ const app = createApp({
         const url =
           new URL(reference);
 
-        const path =
-          url.pathname === "/"
-            ? ""
-            : url.pathname;
-
-        return `${url.hostname}${path}`;
+        return url.hostname.replace(
+          /^www\./,
+          "",
+        );
       } catch {
-        return reference;
+        return "original link";
       }
     }
 
@@ -528,7 +959,7 @@ const app = createApp({
         case "PROPOSED":
           return "Waiting";
         case "COMMITTED":
-          return "It's on";
+          return "Everyone's in";
         case "COMPLETED":
           return "Done";
         case "CANCELLED":
@@ -550,11 +981,18 @@ const app = createApp({
 
     onUnmounted(() => {
       if (
-        refreshTimer !==
-        undefined
+        refreshTimer !== undefined
       ) {
         window.clearInterval(
           refreshTimer,
+        );
+      }
+
+      if (
+        noticeTimer !== undefined
+      ) {
+        window.clearTimeout(
+          noticeTimer,
         );
       }
     });
@@ -562,77 +1000,59 @@ const app = createApp({
     return {
       username,
       password,
-
       signedInUser,
-
       error,
+      authError,
+      captureError,
+      connectionError,
+      planError,
+      notice,
       loading,
-
       connectionUsername,
-
       activityName,
       activityUrl,
-
       selectedPlanItem,
       selectedPlanName,
       selectedPlanPeer,
       planTime,
-
       home,
-
       register,
       signIn,
       signOut,
-
       requestConnection,
       acceptConnection,
       declineConnection,
       disconnect,
-
       expressIntention,
-
       choosePlan,
       clearPlanDraft,
       proposePlan,
-
       respondToPlan,
       cancelPlan,
       completePlan,
-
       displayReference,
       prettyStatus,
     };
   },
 
   template: `
-    <main class="page">
+    <main class="page" :aria-busy="loading">
       <header class="topbar">
-        <div class="identity">
-          <div class="logo-mark">
-            W
+        <a class="identity" href="#top" aria-label="WeShould home">
+          <div class="logo-mark">W</div>
+
+          <div class="brand-copy">
+            <div class="brand">WeShould</div>
+            <div class="tagline">Save the spark. Make it real.</div>
           </div>
+        </a>
 
-          <div>
-            <div class="brand">
-              WeShould
-            </div>
-
-            <div class="tagline">
-              Turn “we should” into something you actually do.
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="signedInUser"
-          class="signed-in"
-        >
-          <span class="username-pill">
-            @{{ signedInUser }}
-          </span>
+        <div v-if="signedInUser" class="signed-in">
+          <span class="username-pill">@{{ signedInUser }}</span>
 
           <button
-            class="button ghost-button"
+            class="button ghost-button small-button"
+            type="button"
             @click="signOut"
           >
             Sign out
@@ -640,62 +1060,89 @@ const app = createApp({
         </div>
       </header>
 
+      <div id="top"></div>
+
       <div
         v-if="error"
-        class="error"
+        class="message error"
+        role="alert"
+        aria-live="assertive"
       >
-        <span class="error-dot"></span>
-
+        <span class="message-dot"></span>
         {{ error }}
       </div>
 
-      <section
-        v-if="!signedInUser"
-        class="auth-shell"
+      <div
+        v-if="notice"
+        class="message notice"
+        role="status"
+        aria-live="polite"
       >
-        <div class="auth-card">
-          <div class="eyebrow">
-            Make the plan happen
-          </div>
+        <span class="message-dot"></span>
+        {{ notice }}
+      </div>
 
-          <h1 class="auth-title">
-            Stop losing the things
-            you said you'd do.
+      <section v-if="!signedInUser" class="auth-shell">
+        <div class="auth-intro">
+          <div class="eyebrow">A place for the plans that almost happen</div>
+
+          <h1 class="display-title auth-display">
+            Keep the idea.<br />
+            Find the overlap.<br />
+            Pick a night.
           </h1>
 
-          <p class="auth-copy">
-            Save places and activities while the idea is still fresh.
-            When a friend independently wants the same thing,
-            WeShould turns that overlap into an actual plan.
+          <p class="lede">
+            WeShould holds onto restaurants, concerts, classes, and places you would genuinely go. When a friend independently saves the same thing, that is when planning starts.
           </p>
+        </div>
 
-          <div class="auth-fields">
-            <label>
-              Username
+        <div class="auth-card">
+          <div class="card-kicker">Sign in to your list</div>
 
-              <input
-                v-model="username"
-                placeholder="josie"
-                autocomplete="username"
-              />
-            </label>
+          <label>
+            Username
+            <input
+              v-model="username"
+              placeholder="josie"
+              autocomplete="username"
+              maxlength="32"
+              :aria-invalid="Boolean(authError)"
+              :aria-describedby="authError ? 'auth-error' : undefined"
+              @input="authError = ''"
+              @keyup.enter="signIn"
+            />
+          </label>
 
-            <label>
-              Password
+          <label>
+            Password
+            <input
+              v-model="password"
+              type="password"
+              placeholder="At least 8 characters"
+              autocomplete="current-password"
+              maxlength="128"
+              :aria-invalid="Boolean(authError)"
+              :aria-describedby="authError ? 'auth-error' : undefined"
+              @input="authError = ''"
+              @keyup.enter="signIn"
+            />
+          </label>
 
-              <input
-                v-model="password"
-                type="password"
-                placeholder="Password"
-                autocomplete="current-password"
-              />
-            </label>
+          <div
+            v-if="authError"
+            id="auth-error"
+            class="inline-error"
+            role="alert"
+          >
+            <span class="inline-error-icon" aria-hidden="true">!</span>
+            <span>{{ authError }}</span>
           </div>
 
           <div class="auth-actions">
             <button
               class="button primary-button"
-              :disabled="loading"
+              :disabled="loading || !username.trim() || !password"
               @click="signIn"
             >
               Sign in
@@ -703,288 +1150,237 @@ const app = createApp({
 
             <button
               class="button secondary-button"
-              :disabled="loading"
+              :disabled="loading || !username.trim() || !password"
               @click="register"
             >
               Create account
             </button>
           </div>
+
+          <p class="microcopy">
+            Accounts use a username and password so the deployed beta can be tested without a Commons account.
+          </p>
         </div>
       </section>
 
       <template v-else>
         <section class="hero">
           <div class="hero-copy">
-            <div class="eyebrow">
-              Your someday list, with a way forward
-            </div>
+            <div class="eyebrow">Your someday list, with a way forward</div>
 
-            <h1>
-              What would you
-              actually go do?
+            <h1 class="display-title">
+              What should you actually do?
             </h1>
 
-            <p class="hero-subtitle">
-              Save the idea now. Figure out the logistics only
-              when someone else is in too.
+            <p class="lede">
+              Save the idea while it is fresh. WeShould waits to introduce coordination until someone you know is in too.
             </p>
           </div>
 
-          <div class="activity-form">
-            <div class="activity-form-heading">
-              Add something you'd go to
+          <div class="capture-card">
+            <div class="capture-number">01</div>
+
+            <div class="capture-copy">
+              <div class="card-kicker">I'd Go</div>
+              <h2>Save the spark.</h2>
+              <p>
+                Paste the link you just found. No date, invitation, or group-chat negotiation yet.
+              </p>
             </div>
 
-            <input
-              v-model="activityName"
-              placeholder="Wally's Cafe"
-            />
+            <label class="field-label">
+              Activity name
+              <input
+                v-model="activityName"
+                placeholder="Wally's Cafe"
+                maxlength="160"
+                :aria-invalid="Boolean(captureError)"
+                :aria-describedby="captureError ? 'capture-error' : undefined"
+                @input="captureError = ''"
+              />
+            </label>
 
-            <div class="activity-url-row">
+            <label class="field-label">
+              Link
               <input
                 v-model="activityUrl"
-                placeholder="Paste a link"
+                type="url"
+                inputmode="url"
+                placeholder="https://..."
+                :aria-invalid="Boolean(captureError)"
+                :aria-describedby="captureError ? 'capture-error' : undefined"
+                @input="captureError = ''"
                 @keyup.enter="expressIntention"
               />
+            </label>
+
+            <div
+              v-if="captureError"
+              id="capture-error"
+              class="inline-error"
+              role="alert"
+            >
+              <span class="inline-error-icon" aria-hidden="true">!</span>
+              <span>{{ captureError }}</span>
+            </div>
+
+            <button
+              class="button spark-button full-button"
+              :disabled="loading || !activityName.trim() || !activityUrl.trim()"
+              @click="expressIntention"
+            >
+              I'd Go
+              <span aria-hidden="true">+</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="summary-strip" aria-label="WeShould summary">
+          <div class="summary-item">
+            <span class="summary-number">{{ home?.intentions?.length || 0 }}</span>
+            <span class="summary-label">saved ideas</span>
+          </div>
+
+          <div class="summary-item accent-summary">
+            <span class="summary-number">{{ home?.sharedIntentions?.length || 0 }}</span>
+            <span class="summary-label">shared sparks</span>
+          </div>
+
+          <div class="summary-item">
+            <span class="summary-number">{{ home?.plans?.filter((plan) => plan.status === 'COMMITTED').length || 0 }}</span>
+            <span class="summary-label">plans happening</span>
+          </div>
+        </section>
+
+        <section class="match-section">
+          <div class="section-intro">
+            <div>
+              <div class="eyebrow plum-eyebrow">02 · YOU'D BOTH GO</div>
+              <h2 class="section-title">There is a reason to make this real.</h2>
+            </div>
+
+            <span class="count-badge">{{ home?.sharedIntentions?.length || 0 }}</span>
+          </div>
+
+          <div
+            v-if="!home?.sharedIntentions?.length"
+            class="empty-card match-empty"
+          >
+            <div class="empty-symbol">✦</div>
+            <div>
+              <strong>No shared spark yet.</strong>
+              <p>
+                Keep saving things you would actually do. When a connection independently saves the same activity, it appears here.
+              </p>
+            </div>
+          </div>
+
+          <div v-else class="match-grid">
+            <article
+              v-for="shared in home?.sharedIntentions || []"
+              :key="shared.peer + shared.item"
+              class="match-card"
+            >
+              <div class="match-badge">New overlap</div>
+
+              <div class="match-people">
+                <span class="avatar avatar-you">{{ signedInUser?.slice(0, 1).toUpperCase() }}</span>
+                <span class="avatar avatar-peer">{{ shared.peer.slice(0, 1).toUpperCase() }}</span>
+                <span>You + @{{ shared.peer }}</span>
+              </div>
+
+              <div class="match-name">{{ shared.name }}</div>
+
+              <a
+                class="reference-link light-link"
+                :href="shared.reference"
+                :title="'Open ' + displayReference(shared.reference)"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View original
+                <span aria-hidden="true">↗</span>
+              </a>
 
               <button
-                class="button primary-button save-button"
-                :disabled="
-                  loading ||
-                  !activityName.trim() ||
-                  !activityUrl.trim()
-                "
-                @click="expressIntention"
+                class="button spark-button match-action"
+                @click="choosePlan(shared)"
               >
-                I'd Go
+                Make a plan
+                <span aria-hidden="true">→</span>
               </button>
-            </div>
-
-            <div class="form-note">
-              No date. No invitation. Just remember the intention.
-            </div>
+            </article>
           </div>
         </section>
 
-        <section class="summary-strip">
-          <div class="summary-item">
-            <span class="summary-number">
-              {{ home?.intentions?.length || 0 }}
-            </span>
-
-            <span class="summary-label">
-              things you'd go to
-            </span>
-          </div>
-
-          <div class="summary-divider"></div>
-
-          <div class="summary-item">
-            <span class="summary-number">
-              {{ home?.sharedIntentions?.length || 0 }}
-            </span>
-
-            <span class="summary-label">
-              shared ideas
-            </span>
-          </div>
-
-          <div class="summary-divider"></div>
-
-          <div class="summary-item">
-            <span class="summary-number">
-              {{ home?.connections?.length || 0 }}
-            </span>
-
-            <span class="summary-label">
-              connections
-            </span>
-          </div>
-        </section>
-
-        <div class="grid">
-          <section class="card shared-card">
-            <div class="section-heading">
+        <div class="content-grid">
+          <section class="paper-card saved-card">
+            <div class="section-intro compact-intro">
               <div>
-                <div class="eyebrow accent-eyebrow">
-                  The interesting part
-                </div>
-
-                <h2>
-                  You'd both go
-                </h2>
-
-                <p class="section-description">
-                  You saved these independently. That's enough of
-                  a reason to make something happen.
-                </p>
+                <div class="eyebrow">01 · I'D GO</div>
+                <h2 class="section-title smaller-title">Ideas worth keeping</h2>
               </div>
 
-              <span class="count">
-                {{ home?.sharedIntentions?.length || 0 }}
-              </span>
-            </div>
-
-            <div
-              v-if="!home?.sharedIntentions?.length"
-              class="empty-state shared-empty"
-            >
-              <div class="empty-icon">
-                ↗
-              </div>
-
-              <div>
-                <strong>
-                  No overlap yet.
-                </strong>
-
-                <p>
-                  When a connection independently saves something
-                  you've saved, it will appear here.
-                </p>
-              </div>
-            </div>
-
-            <div
-              v-else
-              class="shared-list"
-            >
-              <article
-                v-for="shared in home?.sharedIntentions || []"
-                :key="shared.peer + shared.item"
-                class="shared-item"
-              >
-                <div class="shared-main">
-                  <div class="activity-icon">
-                    ↗
-                  </div>
-
-                  <div class="activity-copy">
-                    <div class="item-name large-name">
-                      {{ shared.name }}
-                    </div>
-
-                    <a
-                      class="activity-link"
-                      :href="shared.reference"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {{ displayReference(shared.reference) }}
-                    </a>
-
-                    <div class="shared-with">
-                      You and
-                      <strong>
-                        @{{ shared.peer }}
-                      </strong>
-                      would both go
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  class="button primary-button"
-                  @click="choosePlan(shared)"
-                >
-                  Make a plan
-                  <span aria-hidden="true">
-                    →
-                  </span>
-                </button>
-              </article>
-            </div>
-          </section>
-
-          <section class="card">
-            <div class="section-heading">
-              <div>
-                <div class="eyebrow">
-                  Saved for later
-                </div>
-
-                <h2>
-                  I'd Go
-                </h2>
-              </div>
-
-              <span class="small-count">
-                {{ home?.intentions?.length || 0 }}
-              </span>
+              <span class="count-badge quiet-count">{{ home?.intentions?.length || 0 }}</span>
             </div>
 
             <div
               v-if="!home?.intentions?.length"
-              class="empty-state"
+              class="empty-card flat-empty"
             >
-              <div>
-                <strong>
-                  Nothing saved yet.
-                </strong>
-
-                <p>
-                  Add something above without committing to a date.
-                </p>
-              </div>
+              <strong>Your list is empty.</strong>
+              <p>Add the first place or activity above.</p>
             </div>
 
-            <div
-              v-else
-              class="stack-list"
-            >
+            <div v-else class="saved-list">
               <article
                 v-for="intention in home?.intentions || []"
                 :key="intention.intention"
-                class="simple-row"
+                class="saved-row"
               >
-                <div class="activity-copy">
-                  <div class="item-name">
-                    {{ intention.name }}
-                  </div>
-
+                <div>
+                  <div class="item-name">{{ intention.name }}</div>
                   <a
-                    class="activity-link"
+                    class="reference-link"
                     :href="intention.reference"
+                    :title="'Open ' + displayReference(intention.reference)"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    {{ displayReference(intention.reference) }}
+                    View original
+                    <span aria-hidden="true">↗</span>
                   </a>
                 </div>
 
-                <span class="soft-badge">
-                  I'd go
-                </span>
+                <span class="saved-state">Saved</span>
               </article>
             </div>
           </section>
 
-          <section class="card">
-            <div class="section-heading">
+          <section class="paper-card people-card">
+            <div class="section-intro compact-intro">
               <div>
-                <div class="eyebrow">
-                  Your people
-                </div>
-
-                <h2>
-                  Connections
-                </h2>
+                <div class="eyebrow">YOUR PEOPLE</div>
+                <h2 class="section-title smaller-title">Connections</h2>
               </div>
             </div>
 
             <div class="connection-form">
+              <label class="sr-only" for="connection-username">Friend's username</label>
               <input
+                id="connection-username"
                 v-model="connectionUsername"
                 placeholder="Friend's username"
+                maxlength="32"
+                :aria-invalid="Boolean(connectionError)"
+                :aria-describedby="connectionError ? 'connection-error' : undefined"
+                @input="connectionError = ''"
                 @keyup.enter="requestConnection"
               />
 
               <button
-                class="button primary-button compact-button"
-                :disabled="
-                  loading ||
-                  !connectionUsername.trim()
-                "
+                class="button plum-button compact-button"
+                :disabled="loading || !connectionUsername.trim()"
                 @click="requestConnection"
               >
                 Add
@@ -992,44 +1388,44 @@ const app = createApp({
             </div>
 
             <div
+              v-if="connectionError"
+              id="connection-error"
+              class="inline-error connection-inline-error"
+              role="alert"
+            >
+              <span class="inline-error-icon" aria-hidden="true">!</span>
+              <span>{{ connectionError }}</span>
+            </div>
+
+            <div
               v-if="home?.pendingRequests?.length"
               class="requests"
             >
-              <div class="mini-heading">
-                Requests
-              </div>
+              <div class="mini-heading">Requests</div>
 
               <article
                 v-for="request in home?.pendingRequests || []"
                 :key="request.request"
-                class="connection-row request-row"
+                class="person-row"
               >
                 <div class="person">
-                  <div class="avatar">
-                    {{ request.requester.slice(0, 1).toUpperCase() }}
-                  </div>
-
+                  <div class="avatar">{{ request.requester.slice(0, 1).toUpperCase() }}</div>
                   <div>
-                    <strong>
-                      @{{ request.requester }}
-                    </strong>
-
-                    <div class="meta">
-                      wants to connect
-                    </div>
+                    <strong>@{{ request.requester }}</strong>
+                    <div class="meta">wants to connect</div>
                   </div>
                 </div>
 
                 <div class="row-actions">
                   <button
-                    class="button primary-button compact-button"
+                    class="button plum-button compact-button"
                     @click="acceptConnection(request.request)"
                   >
                     Accept
                   </button>
 
                   <button
-                    class="button ghost-button compact-button"
+                    class="button text-button compact-button"
                     @click="declineConnection(request.request)"
                   >
                     Decline
@@ -1040,343 +1436,273 @@ const app = createApp({
 
             <div
               v-if="!home?.connections?.length"
-              class="empty-state compact-empty"
+              class="empty-card flat-empty"
             >
-              <p>
-                Add a friend so WeShould can surface things you both
-                want to do.
-              </p>
+              <p>Add a friend so WeShould can notice when your lists overlap.</p>
             </div>
 
             <article
               v-for="connection in home?.connections || []"
               :key="connection.connection"
-              class="connection-row"
+              class="person-row"
             >
               <div class="person">
-                <div class="avatar">
-                  {{ connection.peer.slice(0, 1).toUpperCase() }}
-                </div>
-
+                <div class="avatar">{{ connection.peer.slice(0, 1).toUpperCase() }}</div>
                 <div>
-                  <strong>
-                    @{{ connection.peer }}
-                  </strong>
-
-                  <div class="meta">
-                    Connected
-                  </div>
+                  <strong>@{{ connection.peer }}</strong>
+                  <div class="meta">Connected</div>
                 </div>
               </div>
 
               <button
-                class="text-button"
+                class="button text-button compact-button"
                 @click="disconnect(connection.connection)"
               >
                 Disconnect
               </button>
             </article>
           </section>
+        </div>
 
-          <section
-            id="plan-composer"
-            class="card plan-composer"
-            :class="{
-              'plan-composer-active': selectedPlanItem
-            }"
+        <section
+          id="plan-composer"
+          class="plan-composer"
+          :class="{ 'plan-composer-active': selectedPlanItem }"
+        >
+          <div class="composer-heading">
+            <div class="composer-step">03</div>
+
+            <div class="composer-copy">
+              <div class="eyebrow plum-eyebrow">MAKE IT REAL</div>
+              <h2 class="section-title">Pick one concrete time.</h2>
+              <p>
+                Planning only starts after the overlap is real. Pick a time that feels plausible, then let the other person say yes or no.
+              </p>
+            </div>
+          </div>
+
+          <div
+            v-if="!selectedPlanItem"
+            class="composer-placeholder"
           >
-            <div class="section-heading">
-              <div>
-                <div class="eyebrow">
-                  Turn overlap into a commitment
-                </div>
+            <div class="placeholder-kicker">Nothing selected yet</div>
+            <strong>Start from a shared spark above.</strong>
+            <p>Choose <b>Make a plan</b> and the activity will appear here ready to schedule.</p>
+          </div>
 
-                <h2>
-                  Make a plan
-                </h2>
-              </div>
+          <div
+            v-else
+            class="composer-panel"
+          >
+            <div class="selected-activity">
+              <div class="selected-topline">You + @{{ selectedPlanPeer }}</div>
+              <div class="selected-name">{{ selectedPlanName }}</div>
+              <div class="selected-caption">You already agree on the idea. Now just pick a time.</div>
             </div>
+
+            <label class="plan-time-field">
+              <span>When should you go?</span>
+              <input
+                v-model="planTime"
+                class="plan-time-input"
+                placeholder="Friday at 8 PM"
+                maxlength="256"
+                autocomplete="off"
+                :aria-invalid="Boolean(planError)"
+                :aria-describedby="planError ? 'plan-error' : 'plan-time-help'"
+                @input="planError = ''"
+                @keyup.enter="proposePlan"
+              />
+              <small id="plan-time-help">For example: Saturday brunch, Thursday after class, Oct 24 at 7 PM.</small>
+            </label>
 
             <div
-              v-if="!selectedPlanItem"
-              class="empty-state plan-empty"
+              v-if="planError"
+              id="plan-error"
+              class="inline-error plan-inline-error"
+              role="alert"
             >
-              <div class="empty-icon">
-                ✓
-              </div>
-
-              <div>
-                <strong>
-                  Nothing to schedule yet.
-                </strong>
-
-                <p>
-                  Pick “Make a plan” on a shared activity above.
-                </p>
-              </div>
+              <span class="inline-error-icon" aria-hidden="true">!</span>
+              <span>{{ planError }}</span>
             </div>
 
-            <template v-else>
-              <div class="selected-activity">
-                <div class="selected-topline">
-                  Planning with
-                  <strong>
-                    @{{ selectedPlanPeer }}
-                  </strong>
-                </div>
-
-                <div class="selected-name">
-                  {{ selectedPlanName }}
-                </div>
-              </div>
-
-              <label>
-                When should you go?
-
-                <input
-                  v-model="planTime"
-                  placeholder="Friday at 8 PM"
-                  @keyup.enter="proposePlan"
-                />
-              </label>
-
-              <div class="row-actions">
-                <button
-                  class="button primary-button"
-                  :disabled="
-                    loading ||
-                    !planTime.trim()
-                  "
-                  @click="proposePlan"
-                >
-                  Propose plan
-                </button>
-
-                <button
-                  class="button ghost-button"
-                  @click="clearPlanDraft"
-                >
-                  Never mind
-                </button>
-              </div>
-            </template>
-          </section>
-
-          <section class="card plans-card">
-            <div class="section-heading">
-              <div>
-                <div class="eyebrow">
-                  From maybe to happening
-                </div>
-
-                <h2>
-                  Plans
-                </h2>
-              </div>
-
-              <span class="small-count">
-                {{ home?.plans?.length || 0 }}
-              </span>
-            </div>
-
-            <div
-              v-if="!home?.plans?.length"
-              class="empty-state"
-            >
-              <div>
-                <strong>
-                  Nothing planned yet.
-                </strong>
-
-                <p>
-                  Shared intentions become plans once someone picks
-                  a time.
-                </p>
-              </div>
-            </div>
-
-            <div
-              v-else
-              class="plans-list"
-            >
-              <article
-                v-for="plan in home?.plans || []"
-                :key="plan.plan"
-                class="plan"
-                :class="'plan-' + plan.status.toLowerCase()"
+            <div class="composer-actions">
+              <button
+                class="button spark-button propose-button"
+                :disabled="loading || !planTime.trim()"
+                @click="proposePlan"
               >
-                <div class="plan-main">
-                  <div class="activity-copy">
-                    <div class="plan-heading-row">
-                      <div class="item-name large-name">
-                        {{ plan.name }}
-                      </div>
+                Propose this time
+                <span aria-hidden="true">→</span>
+              </button>
 
-                      <span
-                        class="status"
-                        :class="'status-' + plan.status.toLowerCase()"
-                      >
-                        {{ prettyStatus(plan.status) }}
-                      </span>
-                    </div>
+              <button
+                class="button text-button"
+                @click="clearPlanDraft"
+              >
+                Never mind
+              </button>
+            </div>
+          </div>
+        </section>
 
-                    <a
-                      class="activity-link"
-                      :href="plan.reference"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {{ displayReference(plan.reference) }}
-                    </a>
+        <section class="plans-section">
+          <div
+            v-if="planError && !selectedPlanItem"
+            class="inline-error plans-inline-error"
+            role="alert"
+          >
+            <span class="inline-error-icon" aria-hidden="true">!</span>
+            <span>{{ planError }}</span>
+          </div>
 
-                    <div class="time-display">
-                      {{ plan.time }}
-                    </div>
+          <div class="section-intro">
+            <div>
+              <div class="eyebrow plum-eyebrow">FROM MAYBE TO HAPPENING</div>
+              <h2 class="section-title">Plans</h2>
+            </div>
 
-                    <div class="plan-owner">
-                      <template
-                        v-if="plan.organizer === signedInUser"
-                      >
-                        You proposed this
-                      </template>
+            <span class="count-badge">{{ home?.plans?.length || 0 }}</span>
+          </div>
 
-                      <template v-else>
-                        Proposed by
-                        <strong>
-                          @{{ plan.organizer }}
-                        </strong>
-                      </template>
-                    </div>
-                  </div>
-                </div>
+          <div
+            v-if="!home?.plans?.length"
+            class="empty-card plans-empty"
+          >
+            <strong>No plans yet.</strong>
+            <p>A shared idea becomes a plan when someone picks a time.</p>
+          </div>
 
-                <div
-                  v-if="
-                    plan.status === 'PROPOSED' &&
-                    plan.organizer === signedInUser
-                  "
-                  class="plan-footer"
+          <div v-else class="plans-list">
+            <article
+              v-for="plan in home?.plans || []"
+              :key="plan.plan"
+              class="plan-card"
+              :class="'plan-' + plan.status.toLowerCase()"
+            >
+              <div class="plan-status-line">
+                <span
+                  class="status"
+                  :class="'status-' + plan.status.toLowerCase()"
                 >
-                  <div class="waiting-copy">
-                    Waiting for the other person to respond.
-                  </div>
+                  {{ prettyStatus(plan.status) }}
+                </span>
+
+                <span class="plan-owner">
+                  <template v-if="plan.organizer === signedInUser">
+                    You proposed this
+                  </template>
+                  <template v-else>
+                    Proposed by @{{ plan.organizer }}
+                  </template>
+                </span>
+              </div>
+
+              <div class="plan-name">{{ plan.name }}</div>
+
+              <a
+                class="reference-link"
+                :href="plan.reference"
+                :title="'Open ' + displayReference(plan.reference)"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View original
+                <span aria-hidden="true">↗</span>
+              </a>
+
+              <div class="plan-time">{{ plan.time }}</div>
+
+              <div
+                v-if="plan.status === 'PROPOSED' && plan.organizer === signedInUser"
+                class="plan-footer"
+              >
+                <div class="waiting-copy">Waiting for the other person.</div>
+
+                <button
+                  class="button text-button compact-button"
+                  @click="cancelPlan(plan.plan)"
+                >
+                  Cancel plan
+                </button>
+              </div>
+
+              <div
+                v-else-if="plan.status === 'PROPOSED' && plan.response === 'PENDING'"
+                class="plan-footer"
+              >
+                <div class="waiting-copy">Are you in?</div>
+
+                <div class="row-actions">
+                  <button
+                    class="button spark-button compact-button"
+                    @click="respondToPlan(plan.plan, 'ACCEPTED')"
+                  >
+                    Accept
+                  </button>
 
                   <button
-                    class="button ghost-button compact-button"
+                    class="button text-button compact-button"
+                    @click="respondToPlan(plan.plan, 'DECLINED')"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+
+              <div
+                v-else-if="plan.status === 'PROPOSED' && plan.response === 'ACCEPTED'"
+                class="plan-footer"
+              >
+                <div class="waiting-copy">You're in. Waiting for everyone else.</div>
+              </div>
+
+              <div
+                v-else-if="plan.status === 'PROPOSED' && plan.response === 'DECLINED'"
+                class="plan-footer"
+              >
+                <div class="waiting-copy">You declined this plan.</div>
+              </div>
+
+              <div
+                v-if="plan.status === 'COMMITTED'"
+                class="plan-footer committed-footer"
+              >
+                <div class="committed-copy">It's happening.</div>
+
+                <div class="row-actions">
+                  <button
+                    class="button plum-button compact-button"
+                    @click="completePlan(plan.plan)"
+                  >
+                    Mark done
+                  </button>
+
+                  <button
+                    class="button text-button compact-button"
                     @click="cancelPlan(plan.plan)"
                   >
                     Cancel
                   </button>
                 </div>
+              </div>
 
-                <div
-                  v-else-if="
-                    plan.status === 'PROPOSED' &&
-                    plan.response === 'PENDING'
-                  "
-                  class="plan-footer"
-                >
-                  <div class="waiting-copy">
-                    Are you in?
-                  </div>
+              <div
+                v-if="plan.status === 'COMPLETED'"
+                class="plan-footer completed-footer"
+              >
+                <div class="finished-copy">✓ You did it.</div>
+              </div>
 
-                  <div class="row-actions">
-                    <button
-                      class="button primary-button compact-button"
-                      @click="
-                        respondToPlan(
-                          plan.plan,
-                          'ACCEPTED'
-                        )
-                      "
-                    >
-                      Accept
-                    </button>
-
-                    <button
-                      class="button ghost-button compact-button"
-                      @click="
-                        respondToPlan(
-                          plan.plan,
-                          'DECLINED'
-                        )
-                      "
-                    >
-                      Decline
-                    </button>
-                  </div>
-                </div>
-
-                <div
-                  v-else-if="
-                    plan.status === 'PROPOSED' &&
-                    plan.response === 'ACCEPTED'
-                  "
-                  class="plan-footer"
-                >
-                  <div class="waiting-copy">
-                    You're in — waiting for everyone else.
-                  </div>
-                </div>
-
-                <div
-                  v-else-if="
-                    plan.status === 'PROPOSED' &&
-                    plan.response === 'DECLINED'
-                  "
-                  class="plan-footer"
-                >
-                  <div class="waiting-copy">
-                    You declined this plan.
-                  </div>
-                </div>
-
-                <div
-                  v-if="plan.status === 'COMMITTED'"
-                  class="plan-footer committed-footer"
-                >
-                  <div class="committed-copy">
-                    It's happening.
-                  </div>
-
-                  <div class="row-actions">
-                    <button
-                      class="button primary-button compact-button"
-                      @click="completePlan(plan.plan)"
-                    >
-                      Mark done
-                    </button>
-
-                    <button
-                      class="button ghost-button compact-button"
-                      @click="cancelPlan(plan.plan)"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-
-                <div
-                  v-if="plan.status === 'COMPLETED'"
-                  class="plan-footer"
-                >
-                  <div class="finished-copy">
-                    ✓ You did it.
-                  </div>
-                </div>
-
-                <div
-                  v-if="plan.status === 'CANCELLED'"
-                  class="plan-footer"
-                >
-                  <div class="finished-copy muted">
-                    This plan was cancelled.
-                  </div>
-                </div>
-              </article>
-            </div>
-          </section>
-        </div>
+              <div
+                v-if="plan.status === 'CANCELLED'"
+                class="plan-footer cancelled-footer"
+              >
+                <div class="finished-copy muted">This plan was cancelled. The original idea stays saved.</div>
+              </div>
+            </article>
+          </div>
+        </section>
       </template>
     </main>
   `,
@@ -1388,20 +1714,39 @@ const style =
   document.createElement("style");
 
 style.textContent = `
+  :root {
+    --ivory: #f5f0e6;
+    --paper: #fffdf8;
+    --plum: #2f1d2f;
+    --plum-2: #5f2857;
+    --muted-plum: #7a356d;
+    --citron: #d7f23a;
+    --sage: #93a178;
+    --sage-soft: #e6ebdc;
+    --coral: #d16b47;
+    --coral-soft: #fae9e2;
+    --lilac: #d9cde8;
+    --ink: #2a202a;
+    --muted: #756d75;
+    --line: #ded7cd;
+    --shadow: 0 24px 70px rgba(47, 29, 47, 0.08);
+  }
+
   * {
     box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
     margin: 0;
     background:
-      radial-gradient(
-        circle at top right,
-        rgba(235, 229, 216, 0.55),
-        transparent 28rem
-      ),
-      #f8f7f3;
-    color: #1d1c19;
+      radial-gradient(circle at 78% 4%, rgba(215, 242, 58, 0.11), transparent 22rem),
+      radial-gradient(circle at 9% 31%, rgba(217, 205, 232, 0.22), transparent 24rem),
+      var(--ivory);
+    color: var(--ink);
     font-family:
       Inter,
       ui-sans-serif,
@@ -1409,6 +1754,10 @@ style.textContent = `
       BlinkMacSystemFont,
       "Segoe UI",
       sans-serif;
+  }
+
+  a {
+    color: inherit;
   }
 
   button,
@@ -1420,57 +1769,73 @@ style.textContent = `
     cursor: pointer;
   }
 
+  button:focus-visible,
+  input:focus-visible,
+  a:focus-visible {
+    outline: 3px solid var(--citron);
+    outline-offset: 3px;
+  }
+
   .page {
-    width: min(
-      1160px,
-      calc(100% - 48px)
-    );
+    width: min(1180px, calc(100% - 48px));
     margin: 0 auto;
-    padding: 28px 0 88px;
+    padding: 24px 0 96px;
   }
 
   .topbar {
+    position: sticky;
+    top: 12px;
+    z-index: 10;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
-    margin-bottom: 64px;
+    gap: 20px;
+    width: min(100%, 1160px);
+    padding: 11px 14px;
+    margin-bottom: 54px;
+    border: 1px solid rgba(47, 29, 47, 0.1);
+    border-radius: 22px;
+    background: rgba(255, 253, 248, 0.91);
+    box-shadow: 0 12px 34px rgba(47, 29, 47, 0.06);
+    backdrop-filter: blur(18px);
   }
 
   .identity {
     display: flex;
     align-items: center;
-    gap: 13px;
+    gap: 11px;
+    text-decoration: none;
   }
 
   .logo-mark {
     display: grid;
     place-items: center;
-    width: 39px;
-    height: 39px;
-    border-radius: 13px;
-    background: #1d1c19;
-    color: #fff;
-    font-size: 15px;
-    font-weight: 800;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px 12px 12px 4px;
+    background: var(--muted-plum);
+    color: white;
+    font-family: Fraunces, Georgia, serif;
+    font-size: 24px;
+    font-weight: 700;
   }
 
   .brand {
-    font-size: 21px;
+    font-size: 15px;
     font-weight: 800;
-    letter-spacing: -0.045em;
+    letter-spacing: -0.02em;
   }
 
   .tagline {
-    margin-top: 2px;
-    color: #858178;
-    font-size: 12px;
+    margin-top: 1px;
+    color: var(--muted);
+    font-size: 11px;
   }
 
   .signed-in,
   .row-actions,
-  .auth-actions,
-  .activity-url-row {
+  .composer-actions,
+  .auth-actions {
     display: flex;
     align-items: center;
     gap: 9px;
@@ -1478,114 +1843,171 @@ style.textContent = `
 
   .username-pill {
     padding: 8px 12px;
-    border: 1px solid #dedbd2;
     border-radius: 999px;
-    background: rgba(
-      255,
-      255,
-      255,
-      0.7
-    );
-    font-size: 13px;
-    font-weight: 700;
+    background: var(--lilac);
+    color: var(--plum);
+    font-size: 12px;
+    font-weight: 800;
   }
 
-  .eyebrow {
-    color: #88837a;
+  .eyebrow,
+  .card-kicker,
+  .mini-heading {
+    color: var(--muted);
     font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.13em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
   }
 
-  .accent-eyebrow {
-    color: #696257;
+  .plum-eyebrow {
+    color: var(--muted-plum);
   }
 
-  h1,
-  h2,
-  p {
-    margin-top: 0;
+  .display-title,
+  .section-title,
+  .match-name,
+  .plan-name,
+  .selected-name {
+    font-family: Fraunces, Georgia, serif;
   }
 
-  h1 {
-    max-width: 650px;
-    margin-bottom: 16px;
-    font-size: clamp(
-      42px,
-      6vw,
-      70px
-    );
+  .display-title {
+    max-width: 760px;
+    margin: 10px 0 18px;
+    font-size: clamp(52px, 7vw, 86px);
     line-height: 0.94;
-    letter-spacing: -0.06em;
+    letter-spacing: -0.055em;
+    font-weight: 700;
   }
 
-  h2 {
-    margin: 5px 0 0;
-    font-size: 25px;
-    letter-spacing: -0.04em;
+  .lede {
+    max-width: 620px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.6;
   }
 
-  .hero {
+  .message {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 14px;
+    margin: -32px 0 24px;
+    border-radius: 13px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .message-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .error {
+    border: 1px solid rgba(209, 107, 71, 0.4);
+    background: var(--coral-soft);
+    color: #8c432b;
+  }
+
+  .notice {
+    border: 1px solid rgba(147, 161, 120, 0.45);
+    background: var(--sage-soft);
+    color: #50613b;
+  }
+
+  .inline-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 11px 12px;
+    margin: 10px 0 2px;
+    border: 1px solid rgba(209, 107, 71, 0.34);
+    border-radius: 12px;
+    background: var(--coral-soft);
+    color: #81412f;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .inline-error-icon {
     display: grid;
-    grid-template-columns:
-      minmax(0, 1fr)
-      minmax(380px, 0.72fr);
-    gap: 64px;
-    align-items: end;
-    margin-bottom: 34px;
-  }
-
-  .hero-subtitle {
-    max-width: 540px;
-    margin-bottom: 0;
-    color: #747068;
-    font-size: 16px;
-    line-height: 1.55;
-  }
-
-  .activity-form {
-    padding: 19px;
-    border: 1px solid #e1ded5;
-    border-radius: 20px;
-    background: rgba(
-      255,
-      255,
-      255,
-      0.88
-    );
-    box-shadow:
-      0 18px 50px
-      rgba(42, 37, 30, 0.055);
-  }
-
-  .activity-form-heading {
-    margin-bottom: 11px;
-    font-size: 13px;
-    font-weight: 750;
-  }
-
-  .activity-form > input {
-    margin-bottom: 9px;
-  }
-
-  .activity-url-row input {
-    flex: 1;
-  }
-
-  .form-note {
-    margin-top: 10px;
-    color: #99948a;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 19px;
+    height: 19px;
+    margin-top: -1px;
+    border-radius: 50%;
+    background: #d16b47;
+    color: white;
     font-size: 11px;
+    font-weight: 900;
+  }
+
+  .connection-inline-error {
+    margin: 2px 0 12px;
+  }
+
+  .plan-inline-error {
+    margin-top: 12px;
+  }
+
+  .plans-inline-error {
+    margin: 0 0 18px;
+  }
+
+  input[aria-invalid="true"] {
+    border-color: #c96b4d;
+    box-shadow: 0 0 0 3px rgba(209, 107, 71, 0.1);
+  }
+
+  .auth-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.65fr);
+    gap: 64px;
+    min-height: 70vh;
+    align-items: center;
+  }
+
+  .auth-display {
+    font-size: clamp(48px, 6.4vw, 78px);
+  }
+
+  .auth-card,
+  .paper-card,
+  .capture-card {
+    border: 1px solid var(--line);
+    background: rgba(255, 253, 248, 0.94);
+    box-shadow: var(--shadow);
+  }
+
+  .auth-card {
+    padding: 30px;
+    border-radius: 28px;
+  }
+
+  label,
+  .field-label {
+    display: grid;
+    gap: 7px;
+    margin: 16px 0;
+    color: #5f565f;
+    font-size: 12px;
+    font-weight: 700;
   }
 
   input {
     width: 100%;
-    padding: 12px 13px;
-    border: 1px solid #dad6cc;
-    border-radius: 11px;
-    background: #fff;
-    color: #1d1c19;
+    min-height: 48px;
+    padding: 12px 14px;
+    border: 1px solid #d9d1c8;
+    border-radius: 13px;
+    background: #fffefa;
+    color: var(--ink);
     outline: none;
     transition:
       border-color 150ms ease,
@@ -1593,25 +2015,24 @@ style.textContent = `
   }
 
   input::placeholder {
-    color: #aaa59c;
+    color: #aaa1aa;
   }
 
   input:focus {
-    border-color: #8c867b;
-    box-shadow:
-      0 0 0 3px
-      rgba(50, 47, 42, 0.06);
+    border-color: var(--muted-plum);
+    box-shadow: 0 0 0 3px rgba(122, 53, 109, 0.11);
   }
 
   .button {
+    min-height: 44px;
     border: 0;
     border-radius: 999px;
-    padding: 11px 17px;
-    font-weight: 750;
+    padding: 11px 18px;
+    font-weight: 800;
     transition:
       transform 120ms ease,
-      opacity 120ms ease,
-      background 120ms ease;
+      background 120ms ease,
+      opacity 120ms ease;
   }
 
   .button:not(:disabled):active {
@@ -1620,299 +2041,374 @@ style.textContent = `
 
   .button:disabled {
     cursor: default;
-    opacity: 0.38;
+    opacity: 0.4;
   }
 
-  .primary-button {
-    background: #1d1c19;
+  .primary-button,
+  .plum-button {
+    background: var(--plum);
     color: white;
   }
 
-  .primary-button:hover:not(:disabled) {
-    background: #34312c;
+  .primary-button:hover:not(:disabled),
+  .plum-button:hover:not(:disabled) {
+    background: #432943;
   }
 
   .secondary-button {
-    background: #ebe8e0;
-    color: #24221e;
+    background: #eee7dd;
+    color: var(--plum);
   }
 
-  .ghost-button {
-    border: 1px solid #dedad0;
+  .ghost-button,
+  .text-button {
+    border: 1px solid rgba(47, 29, 47, 0.13);
     background: transparent;
-    color: #5e5a53;
-  }
-
-  .compact-button {
-    padding: 8px 13px;
-    font-size: 12px;
+    color: var(--plum);
   }
 
   .text-button {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: #9a958c;
-    font-size: 12px;
+    min-height: 36px;
+    padding: 7px 11px;
+    font-size: 11px;
   }
 
-  .text-button:hover {
-    color: #4f4b45;
+  .spark-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--citron);
+    color: #211b20;
+  }
+
+  .spark-button:hover:not(:disabled) {
+    background: #e0fa4f;
+  }
+
+  .small-button {
+    min-height: 38px;
+    padding: 8px 13px;
+    font-size: 11px;
+  }
+
+  .compact-button {
+    min-height: 38px;
+    padding: 8px 13px;
+    font-size: 11px;
+  }
+
+  .full-button {
+    width: 100%;
+  }
+
+  .microcopy {
+    margin: 15px 0 0;
+    color: #8c838b;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.68fr);
+    gap: 58px;
+    align-items: end;
+    margin-bottom: 28px;
+  }
+
+  .capture-card {
+    position: relative;
+    padding: 26px;
+    border-radius: 28px;
+    overflow: hidden;
+  }
+
+  .capture-card::after {
+    content: "";
+    position: absolute;
+    right: -70px;
+    top: -70px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: rgba(215, 242, 58, 0.22);
+    pointer-events: none;
+  }
+
+  .capture-number {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    margin-bottom: 18px;
+    border-radius: 50%;
+    background: var(--plum);
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .capture-copy h2 {
+    margin: 5px 0 7px;
+    font-family: Fraunces, Georgia, serif;
+    font-size: 31px;
+    letter-spacing: -0.035em;
+  }
+
+  .capture-copy p {
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.55;
   }
 
   .summary-strip {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    padding: 15px 20px;
-    margin-bottom: 18px;
-    border: 1px solid #e7e3da;
-    border-radius: 16px;
-    background: rgba(
-      255,
-      255,
-      255,
-      0.56
-    );
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    margin: 24px 0 48px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--line);
   }
 
   .summary-item {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: 9px;
+    padding: 17px 20px;
+    background: rgba(255, 253, 248, 0.92);
+  }
+
+  .accent-summary {
+    background: rgba(217, 205, 232, 0.48);
   }
 
   .summary-number {
-    font-size: 19px;
-    font-weight: 800;
-    letter-spacing: -0.04em;
+    font-family: Fraunces, Georgia, serif;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
   }
 
   .summary-label {
-    color: #858078;
-    font-size: 12px;
+    color: var(--muted);
+    font-size: 11px;
   }
 
-  .summary-divider {
-    width: 1px;
-    height: 18px;
-    background: #ddd9d0;
+  .match-section,
+  .plans-section {
+    margin: 48px 0;
   }
 
-  .grid {
-    display: grid;
-    grid-template-columns:
-      repeat(2, minmax(0, 1fr));
-    gap: 18px;
-  }
-
-  .card {
-    padding: 23px;
-    border: 1px solid #e5e1d8;
-    border-radius: 20px;
-    background: rgba(
-      255,
-      255,
-      255,
-      0.92
-    );
-    box-shadow:
-      0 8px 30px
-      rgba(45, 40, 31, 0.025);
-  }
-
-  .shared-card,
-  .plans-card {
-    grid-column: span 2;
-  }
-
-  .section-heading {
+  .section-intro {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 24px;
+    gap: 20px;
     margin-bottom: 18px;
   }
 
-  .section-description {
-    max-width: 560px;
-    margin: 7px 0 0;
-    color: #858078;
-    font-size: 13px;
-    line-height: 1.5;
+  .compact-intro {
+    margin-bottom: 15px;
   }
 
-  .count {
+  .section-title {
+    margin: 5px 0 0;
+    font-size: clamp(34px, 4vw, 49px);
+    line-height: 1.02;
+    letter-spacing: -0.045em;
+  }
+
+  .smaller-title {
+    font-size: 34px;
+  }
+
+  .count-badge {
     display: grid;
     place-items: center;
-    min-width: 36px;
-    height: 36px;
+    min-width: 38px;
+    height: 38px;
     border-radius: 50%;
-    background: #efede7;
+    background: var(--plum);
+    color: white;
     font-weight: 800;
   }
 
-  .small-count {
+  .quiet-count {
+    background: #ece4dc;
+    color: var(--plum);
+  }
+
+  .match-grid {
     display: grid;
-    place-items: center;
-    min-width: 29px;
-    height: 29px;
-    border-radius: 50%;
-    background: #f0eee9;
-    color: #67625a;
-    font-size: 12px;
-    font-weight: 800;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
   }
 
-  .empty-state {
-    display: flex;
-    gap: 13px;
-    align-items: flex-start;
-    padding: 18px 0 4px;
-    color: #837f77;
-  }
-
-  .empty-state strong {
-    color: #666158;
-    font-size: 13px;
-  }
-
-  .empty-state p {
-    margin: 4px 0 0;
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  .shared-empty {
-    padding: 22px;
-    border-radius: 15px;
-    background: #f5f3ee;
-  }
-
-  .compact-empty {
-    padding: 18px 0 8px;
-  }
-
-  .plan-empty {
-    padding-top: 8px;
-  }
-
-  .empty-icon {
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-    width: 33px;
-    height: 33px;
-    border-radius: 10px;
-    background: #ebe8e1;
-    color: #6f6a61;
-    font-weight: 800;
-  }
-
-  .shared-list,
-  .stack-list,
-  .plans-list {
-    display: grid;
-    gap: 9px;
-  }
-
-  .shared-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 22px;
-    padding: 17px;
-    border: 1px solid #e6e2d8;
-    border-radius: 15px;
-    background: #f8f6f1;
-  }
-
-  .shared-main {
-    display: flex;
-    align-items: flex-start;
-    min-width: 0;
-    gap: 13px;
-  }
-
-  .activity-icon {
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-    width: 37px;
-    height: 37px;
-    border-radius: 11px;
-    background: #e9e5dc;
-    font-size: 15px;
-    font-weight: 800;
-  }
-
-  .activity-copy {
-    min-width: 0;
-  }
-
-  .item-name {
-    color: #26231f;
-    font-size: 15px;
-    font-weight: 760;
-    overflow-wrap: anywhere;
-  }
-
-  .large-name {
-    font-size: 17px;
-  }
-
-  .activity-link {
-    display: block;
-    max-width: 500px;
-    margin-top: 3px;
+  .match-card {
+    position: relative;
+    min-height: 330px;
+    padding: 28px;
+    border-radius: 28px;
     overflow: hidden;
-    color: #98938a;
-    font-size: 11px;
-    text-decoration: none;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    background:
+      radial-gradient(circle at 88% 18%, rgba(215, 242, 58, 0.2), transparent 13rem),
+      var(--muted-plum);
+    color: white;
+    box-shadow: 0 22px 55px rgba(74, 32, 68, 0.18);
   }
 
-  .activity-link:hover {
-    color: #625e57;
-    text-decoration: underline;
+  .match-badge {
+    display: inline-block;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: var(--citron);
+    color: #211b20;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
 
-  .shared-with {
-    margin-top: 7px;
-    color: #777269;
+  .match-people {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 42px;
+    color: rgba(255, 255, 255, 0.79);
     font-size: 12px;
+    font-weight: 700;
   }
 
-  .simple-row {
+  .avatar {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #eadfda;
+    color: var(--plum);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .avatar-you {
+    background: #f2b8c5;
+  }
+
+  .avatar-peer {
+    margin-left: -12px;
+    border: 2px solid var(--muted-plum);
+    background: #bfdce0;
+  }
+
+  .match-name {
+    margin-top: 20px;
+    font-size: clamp(36px, 4vw, 54px);
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+  }
+
+  .match-action {
+    width: 100%;
+    margin-top: 28px;
+  }
+
+  .empty-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: rgba(255, 253, 248, 0.78);
+    color: var(--muted);
+  }
+
+  .empty-card strong {
+    color: var(--ink);
+    font-size: 13px;
+  }
+
+  .empty-card p {
+    margin: 5px 0 0;
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .match-empty {
+    align-items: center;
+    padding: 28px;
+  }
+
+  .empty-symbol {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 15px;
+    background: var(--lilac);
+    color: var(--muted-plum);
+    font-size: 18px;
+  }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+    gap: 18px;
+    margin: 48px 0;
+  }
+
+  .paper-card {
+    padding: 25px;
+    border-radius: 24px;
+  }
+
+  .saved-list,
+  .requests {
+    display: grid;
+  }
+
+  .saved-row,
+  .person-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 18px;
+    gap: 16px;
+    min-height: 68px;
     padding: 13px 0;
-    border-top: 1px solid #efede8;
+    border-top: 1px solid #ece4dc;
   }
 
-  .simple-row:first-child {
+  .saved-row:first-child,
+  .person-row:first-child {
     border-top: 0;
   }
 
-  .soft-badge {
-    flex: 0 0 auto;
-    padding: 6px 9px;
-    border-radius: 999px;
-    background: #f2f0eb;
-    color: #7d786f;
-    font-size: 10px;
+  .item-name {
+    font-size: 14px;
     font-weight: 750;
-    text-transform: uppercase;
+  }
+
+  .saved-state {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #efe7dd;
+    color: var(--muted-plum);
+    font-size: 9px;
+    font-weight: 800;
     letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .connection-form {
     display: flex;
-    gap: 9px;
-    margin-bottom: 10px;
+    gap: 8px;
+    margin-bottom: 7px;
   }
 
   .connection-form input {
@@ -1920,340 +2416,507 @@ style.textContent = `
   }
 
   .mini-heading {
-    margin: 19px 0 6px;
-    color: #8b867e;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .connection-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 12px 0;
-    border-top: 1px solid #efede8;
+    margin: 18px 0 4px;
   }
 
   .person {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
   }
 
-  .avatar {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: #ebe8e1;
-    color: #5e5a52;
-    font-size: 11px;
-    font-weight: 800;
+  .person strong {
+    font-size: 12px;
   }
 
   .meta {
     margin-top: 2px;
-    color: #969188;
-    font-size: 11px;
+    color: #948a91;
+    font-size: 10px;
+  }
+
+  .flat-empty {
+    padding: 14px 0 4px;
+    border: 0;
+    background: transparent;
+  }
+
+  .reference-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 5px;
+    color: var(--muted-plum);
+    font-size: 10px;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .reference-link:hover {
+    text-decoration: underline;
+  }
+
+  .light-link {
+    color: rgba(255, 255, 255, 0.78);
   }
 
   .plan-composer {
+    display: grid;
+    grid-template-columns: minmax(0, 0.82fr) minmax(420px, 1fr);
+    gap: 34px;
+    align-items: stretch;
+    padding: 34px;
+    margin: 56px 0;
+    border: 1px solid rgba(122, 53, 109, 0.2);
+    border-radius: 30px;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(215, 242, 58, 0.16), transparent 14rem),
+      rgba(217, 205, 232, 0.38);
     scroll-margin: 110px;
     transition:
-      border-color 180ms ease,
-      box-shadow 180ms ease;
+      box-shadow 180ms ease,
+      transform 180ms ease;
   }
 
   .plan-composer-active {
-    border-color: #bbb4a7;
-    box-shadow:
-      0 16px 42px
-      rgba(41, 35, 28, 0.075);
+    box-shadow: 0 22px 55px rgba(122, 53, 109, 0.14);
+    transform: translateY(-2px);
+  }
+
+  .composer-heading {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 22px;
+    align-content: start;
+  }
+
+  .composer-step {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--plum);
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .composer-copy .section-title {
+    margin-top: 7px;
+    font-size: clamp(36px, 4.4vw, 56px);
+    line-height: 0.98;
+  }
+
+  .composer-copy p {
+    max-width: 560px;
+    margin: 13px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .composer-placeholder,
+  .composer-panel {
+    min-width: 0;
+    border: 1px solid rgba(47, 29, 47, 0.08);
+    border-radius: 22px;
+    background: rgba(255, 253, 248, 0.86);
+  }
+
+  .composer-placeholder {
+    display: grid;
+    align-content: center;
+    min-height: 190px;
+    padding: 26px 28px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .composer-placeholder strong {
+    margin-top: 5px;
+    color: var(--ink);
+    font-family: Fraunces, Georgia, serif;
+    font-size: 25px;
+  }
+
+  .composer-placeholder p {
+    margin: 7px 0 0;
+  }
+
+  .placeholder-kicker {
+    color: var(--muted-plum);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .composer-panel {
+    padding: 22px;
   }
 
   .selected-activity {
-    padding: 16px;
-    margin-bottom: 17px;
-    border-radius: 14px;
-    background: #f3f1eb;
+    padding: 20px 21px;
+    margin-bottom: 18px;
+    border-radius: 18px;
+    background: var(--plum);
+    color: white;
   }
 
   .selected-topline {
-    color: #817c72;
-    font-size: 11px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 10px;
+    font-weight: 700;
   }
 
   .selected-name {
     margin-top: 5px;
-    font-size: 21px;
-    font-weight: 780;
-    letter-spacing: -0.035em;
+    color: white;
+    font-size: clamp(29px, 3.3vw, 42px);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
   }
 
-  label {
+  .selected-caption {
+    margin-top: 9px;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .plan-time-field {
     display: grid;
-    gap: 7px;
-    margin: 16px 0;
-    color: #57534c;
-    font-size: 12px;
-    font-weight: 700;
+    gap: 8px;
+    margin: 0;
+    color: var(--plum);
+    font-size: 13px;
+    font-weight: 800;
   }
 
-  .plan {
-    overflow: hidden;
-    border: 1px solid #e7e3da;
-    border-radius: 15px;
-    background: #fff;
+  .plan-time-field small {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.45;
   }
 
-  .plan-main {
-    padding: 17px;
+  .plan-time-input {
+    min-height: 62px;
+    padding: 15px 17px;
+    border-width: 2px;
+    border-color: rgba(122, 53, 109, 0.46);
+    border-radius: 17px;
+    background: #fffefa;
+    font-size: 18px;
+    font-weight: 750;
   }
 
-  .plan-heading-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .plan-time-input::placeholder {
+    color: #aa9eaa;
+    font-weight: 650;
+  }
+
+  .composer-actions {
+    margin-top: 18px;
+  }
+
+  .propose-button {
+    min-height: 50px;
+    padding-inline: 22px;
+  }
+
+  .plans-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
 
-  .time-display {
-    margin-top: 11px;
-    color: #26231f;
-    font-size: 14px;
-    font-weight: 700;
+  .plan-card {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: rgba(255, 253, 248, 0.95);
+    box-shadow: 0 12px 32px rgba(47, 29, 47, 0.045);
   }
 
-  .plan-owner {
-    margin-top: 5px;
-    color: #8b867d;
-    font-size: 11px;
+  .plan-card > :not(.plan-footer) {
+    margin-left: 22px;
+    margin-right: 22px;
+  }
+
+  .plan-status-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 20px;
   }
 
   .status {
-    flex: 0 0 auto;
-    padding: 6px 9px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 5px 9px;
     border-radius: 999px;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .status-proposed {
-    background: #f1eee6;
-    color: #736d62;
+    background: #f1e5d5;
+    color: #91601e;
   }
 
   .status-committed {
-    background: #e8eee7;
-    color: #4e6550;
+    background: var(--sage-soft);
+    color: #50613b;
   }
 
   .status-completed {
-    background: #ecebea;
-    color: #5d5b57;
+    background: #ece8e4;
+    color: #625b62;
   }
 
   .status-cancelled {
-    background: #f2efed;
-    color: #918980;
+    background: var(--coral-soft);
+    color: #8c432b;
+  }
+
+  .plan-owner {
+    color: var(--muted);
+    font-size: 9px;
+  }
+
+  .plan-name {
+    margin-top: 22px;
+    font-size: 34px;
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+  }
+
+  .plan-time {
+    margin-top: 18px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    font-weight: 800;
   }
 
   .plan-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
-    padding: 12px 17px;
-    border-top: 1px solid #eeeae2;
-    background: #faf9f6;
+    gap: 14px;
+    padding: 13px 20px;
+    border-top: 1px solid var(--line);
+    background: #faf6ef;
   }
 
-  .committed-footer {
-    background: #f3f6f2;
+  .committed-footer,
+  .completed-footer {
+    background: var(--sage-soft);
+  }
+
+  .cancelled-footer {
+    background: #f8eee9;
   }
 
   .waiting-copy,
-  .finished-copy,
-  .committed-copy {
-    color: #777168;
-    font-size: 12px;
-    font-weight: 650;
-  }
-
-  .committed-copy {
-    color: #526553;
-  }
-
+  .committed-copy,
   .finished-copy {
-    color: #5f5b54;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .committed-copy,
+  .finished-copy {
+    color: #50613b;
   }
 
   .muted {
-    color: #9b958c;
+    color: #8c6f64;
   }
 
-  .error {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 11px 14px;
-    margin: -35px 0 28px;
-    border: 1px solid #ecc6bf;
-    border-radius: 11px;
-    background: #fff3f0;
-    color: #8d4338;
-    font-size: 12px;
-    font-weight: 650;
+  .plans-empty {
+    max-width: 620px;
   }
 
-  .error-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #b65d4f;
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
-  .auth-shell {
-    display: grid;
-    min-height: 65vh;
-    place-items: center;
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      transition: none !important;
+    }
   }
 
-  .auth-card {
-    width: min(
-      520px,
-      100%
-    );
-    padding: 36px;
-    border: 1px solid #e3dfd6;
-    border-radius: 25px;
-    background: rgba(
-      255,
-      255,
-      255,
-      0.92
-    );
-    box-shadow:
-      0 24px 70px
-      rgba(43, 37, 29, 0.07);
+  @media (max-width: 900px) {
+    .hero,
+    .auth-shell,
+    .content-grid,
+    .plan-composer {
+      grid-template-columns: 1fr;
+    }
+
+    .hero,
+    .auth-shell {
+      gap: 30px;
+    }
+
+    .plan-composer {
+      gap: 22px;
+    }
+
+    .composer-heading {
+      grid-template-columns: 46px minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .composer-step {
+      width: 40px;
+      height: 40px;
+    }
   }
 
-  .auth-title {
-    margin-top: 11px;
-    font-size: 43px;
-  }
-
-  .auth-copy {
-    color: #746f67;
-    font-size: 14px;
-    line-height: 1.6;
-  }
-
-  .auth-fields {
-    margin-top: 26px;
-  }
-
-  @media (max-width: 800px) {
+  @media (max-width: 700px) {
     .page {
-      width: min(
-        100% - 26px,
-        1160px
-      );
+      width: min(100% - 24px, 1180px);
+      padding-top: 12px;
     }
 
     .topbar {
-      align-items: flex-start;
+      top: 8px;
+      margin-bottom: 38px;
     }
 
-    .hero {
+    .tagline {
+      display: none;
+    }
+
+    .display-title {
+      font-size: clamp(48px, 14vw, 68px);
+    }
+
+    .lede {
+      font-size: 15px;
+    }
+
+    .summary-strip,
+    .match-grid,
+    .plans-list {
       grid-template-columns: 1fr;
-      gap: 28px;
-    }
-
-    .grid {
-      grid-template-columns: 1fr;
-    }
-
-    .shared-card,
-    .plans-card {
-      grid-column: span 1;
     }
 
     .summary-strip {
-      gap: 13px;
-      overflow-x: auto;
+      gap: 0;
     }
 
     .summary-item {
-      min-width: max-content;
+      border-bottom: 1px solid var(--line);
     }
 
-    .shared-item,
-    .plan-footer {
-      align-items: flex-start;
-      flex-direction: column;
+    .summary-item:last-child {
+      border-bottom: 0;
     }
 
-    .shared-item .button {
-      width: 100%;
+    .match-card {
+      min-height: 300px;
+    }
+
+    .section-title {
+      font-size: 38px;
+    }
+
+    .plan-composer {
+      padding: 24px;
+    }
+
+    .composer-panel {
+      padding: 18px;
+    }
+
+    .plan-time-input {
+      min-height: 58px;
+      font-size: 17px;
     }
   }
 
-  @media (max-width: 560px) {
-    .page {
-      width: min(
-        100% - 20px,
-        1160px
-      );
-      padding-top: 18px;
+  @media (max-width: 520px) {
+    .composer-heading {
+      grid-template-columns: 1fr;
     }
 
-    .topbar {
-      flex-direction: column;
-      margin-bottom: 44px;
+    .composer-step {
+      width: 38px;
+      height: 38px;
     }
 
-    .signed-in {
-      width: 100%;
-      justify-content: space-between;
+    .composer-copy .section-title {
+      font-size: 38px;
     }
 
-    h1 {
-      font-size: 47px;
-    }
-
-    .activity-url-row,
-    .connection-form,
-    .auth-actions {
+    .composer-actions {
       align-items: stretch;
       flex-direction: column;
     }
 
-    .summary-divider {
+    .composer-actions .button {
+      width: 100%;
+    }
+
+    .brand-copy {
       display: none;
     }
 
-    .summary-strip {
-      justify-content: space-between;
+    .username-pill {
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .summary-item {
-      align-items: flex-start;
+    .auth-actions,
+    .connection-form,
+    .plan-footer {
+      align-items: stretch;
       flex-direction: column;
-      gap: 1px;
     }
 
-    .row-actions {
-      flex-wrap: wrap;
+    .auth-actions .button,
+    .connection-form .button,
+    .plan-footer .button,
+    .composer-actions .button {
+      width: 100%;
+    }
+
+    .composer-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .match-card,
+    .paper-card,
+    .capture-card,
+    .auth-card {
+      border-radius: 22px;
     }
   }
 `;
 
-document.head.appendChild(
-  style,
-);
+document.head.appendChild(style);

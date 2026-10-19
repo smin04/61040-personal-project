@@ -1,44 +1,69 @@
-# 61040-personal-project
+# WeShould
 
-# WeShould 
+WeShould is a small social planning app for the gap between "we should do that" and an actual plan.
 
-For getting plans out of the group chat and into the calendar. 
+The app lets someone save a restaurant, event, class, or other activity without choosing a date or sending an invitation. When a connection independently saves the same activity, WeShould surfaces the overlap and gives them a lightweight path to propose a time, accept it, and turn the idea into a committed plan.
 
-WeShould helps people preserve lightweight interest activities they discover online, recognize when friends share that interest, and turn it into a real plan without forcing strict timing constraints.
+## P3 beta
 
-## Design Submission
+The implemented journey is:
 
-- [Problem Framing and Stakeholders](design/problem-framing.md)
-- [Application Pitch](design/pitch.md)
-- [Concept Design and Essential Reactions](design/concepts.md)
-- [UI Sketches](design/ui-sketches.md)
-- [User Journey](design/user-journey.md)
+`register -> connect -> save an activity -> discover shared interest -> propose a plan -> accept -> commit -> complete`
 
-## Core Design Question
+The beta intentionally keeps discovery outside the app. Users enter an activity name and an HTTP or HTTPS link. Direct sharing from TikTok or Instagram is a future capture improvement but is not part of the deployed P3 web beta.
+
+## P3 deliverables
+
+- [Visual design study](design/visual-design-study.pdf)
+- [Updated beta user journey](design/p3-user-journey.md)
+- [Concept specifications](design/concepts/)
+- [Application composition](design/compositions/Application.md)
+- [WeShould composition](design/compositions/WeShould.md)
+- [Saved P3 test output](tests/output/p3-test-results.txt)
+- [Saved P3 check output](tests/output/p3-check-results.txt)
+- [P2 implementation notes](design/p2-notes.md)
+
+**Deployed app:** `tbd'
+
+**Narrated screen recording:** `tbd'
+
+## Design
+
+The core design question is:
 
 > Can software preserve weak offline intentions long enough to discover shared interest and turn that interest into commitment?
 
-## Repository Structure
+The application separates that progression across concepts rather than treating every saved activity as a plan.
 
-```text
-README.md
-design/
-  problem-framing.md
-  pitch.md
-  concepts.md
-  ui-sketches.md
-  user-journey.md
-  scope.md
-images/
-  sketches/
-    sketch1.png
-    sketch2.png
-    sketch3.png
-    sketch4.png
-    sketch5.png
-  uidesignp1-homepage-act.png
-  uidesignp1-homepage-ig.png
-  uidesignp1-homepage-makeitreal.png
-  uidesignp1-homepage.png
-  uidesignp1-planspage.png
-  uidesignp1.png
+`Resolving` owns stable activity identity and reference convergence. `Intending` records lightweight willingness. `Connecting` owns reciprocal relationships. `Planning` owns proposals, responses, commitment, cancellation, and completion. `Authenticating` and `Sessioning` provide account and session infrastructure.
+
+Cross-concept behavior lives in compositions. Shared intentions are derived from connections and active intentions. A plan commits after the final participant accepts. Completing a committed plan withdraws the corresponding active intentions, while cancelling a plan leaves those weaker intentions intact.
+
+## Visual and interaction design
+
+The P3 interface applies the typography and color study to the working application. Fraunces is used for larger display text, while Inter is used for controls, labels, and metadata. Warm ivory forms the base of the interface, deep plum anchors navigation and structure, citron is reserved for the strongest next action, sage marks settled positive states, and coral is used for errors and destructive actions.
+
+The interface follows the same progression as the product:
+
+1. Save an idea.
+2. Notice a shared intention.
+3. Make a plan.
+
+The shared-intention section receives the strongest visual treatment because it marks the point when an individual intention becomes useful to someone else.
+
+The P3 pass also improved the planning form, responsive layout, focus states, action hierarchy, and error feedback. Expected failures such as an already-used username, an invalid link, or a repeated connection request are presented near the relevant controls with human-readable guidance.
+
+## Running locally
+
+### Requirements
+
+- Bun
+- MongoDB
+- Podman or another way to run MongoDB locally
+
+The repository includes `compose.yaml` for local MongoDB setup.
+
+Start MongoDB:
+
+```bash
+podman compose up -d

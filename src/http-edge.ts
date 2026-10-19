@@ -25,6 +25,33 @@ export const weShouldPolicy =
       ITEM_NOT_FOUND:
         "NOT_FOUND",
 
+      CANNOT_CONNECT_SELF:
+        "INVALID_REQUEST",
+
+      ALREADY_CONNECTED:
+        "CONFLICT",
+
+      REQUEST_EXISTS:
+        "CONFLICT",
+
+      REQUEST_NOT_FOUND:
+        "NOT_FOUND",
+
+      NOT_REQUEST_RECIPIENT:
+        "FORBIDDEN",
+
+      CONNECTION_NOT_FOUND:
+        "NOT_FOUND",
+
+      NOT_CONNECTION_MEMBER:
+        "FORBIDDEN",
+
+      ALREADY_INTENDING:
+        "CONFLICT",
+
+      INTENTION_NOT_FOUND:
+        "NOT_FOUND",
+
       ORGANIZER_NOT_PARTICIPANT:
         "INVALID_REQUEST",
 

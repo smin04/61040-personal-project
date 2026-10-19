@@ -16,6 +16,7 @@
   "scripts": {
     "generate": "sync-engine artifacts pin",
     "check": "sync-engine check && sync-engine artifacts check && tsc --noEmit",
-    "start": "bun src/main.ts"
+    "test": "bun test tests",
+    "start": "bun src/host.ts"
   }
 }

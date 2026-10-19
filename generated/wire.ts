@@ -244,7 +244,7 @@ export type WeShouldWireHttp = {
     output: {
       "id": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Connecting"]["accept"]>>, ["connection"]>>;
     };
-    error: { error: HttpAppWideError | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
   };
   "/connections/decline": {
     input: {
@@ -254,7 +254,7 @@ export type WeShouldWireHttp = {
     output: {
       "id": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Connecting"]["decline"]>>, ["request"]>>;
     };
-    error: { error: HttpAppWideError | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
   };
   "/connections/disconnect": {
     input: {
@@ -264,7 +264,7 @@ export type WeShouldWireHttp = {
     output: {
       "id": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Connecting"]["disconnect"]>>, ["connection"]>>;
     };
-    error: { error: HttpAppWideError | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
   };
   "/connections/request": {
     input: {
@@ -274,7 +274,7 @@ export type WeShouldWireHttp = {
     output: {
       "id": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Connecting"]["request"]>>, ["request"]>>;
     };
-    error: { error: HttpAppWideError | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "CONFLICT" | "INVALID_REQUEST" | "UNAUTHORIZED" };
   };
   "/home": {
     input: {
@@ -325,7 +325,7 @@ export type WeShouldWireHttp = {
     output: {
       "id": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Intending"]["express"]>>, ["intention"]>>;
     };
-    error: { error: HttpAppWideError | "INTERNAL_ERROR" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "CONFLICT" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
   };
   "/plans/cancel": {
     input: {
@@ -345,7 +345,7 @@ export type WeShouldWireHttp = {
     output: {
       "id": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Planning"]["complete"]>[0], ["plan"]>>;
     };
-    error: { error: HttpAppWideError | "CONFLICT" | "INTERNAL_ERROR" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "CONFLICT" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
   };
   "/plans/propose": {
     input: {

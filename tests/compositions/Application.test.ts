@@ -7,9 +7,7 @@ import {
   test,
 } from "bun:test";
 
-import {
-  MongoClient,
-} from "mongodb";
+import { MongoClient } from "mongodb";
 
 import {
   assemble,
@@ -50,11 +48,7 @@ const db =
 type Result =
   | {
       ok: true;
-      value:
-        Record<
-          string,
-          any
-        >;
+      value: Record<string, any>;
     }
   | {
       ok: false;
@@ -63,21 +57,22 @@ type Result =
 
 function valueOf(
   result: Result,
-): Record<
-  string,
-  any
-> {
-  expect(
-    result.ok,
-  ).toBe(true);
+): Record<string, any> {
+  expect(result.ok).toBe(true);
 
-  if (!result.ok) {
+  if (result.ok === false) {
     throw new Error(
       `Expected success, received ${JSON.stringify(result.error)}`,
     );
   }
 
   return result.value;
+}
+
+function expectFailure(
+  result: Result,
+) {
+  expect(result.ok).toBe(false);
 }
 
 function makeApplication() {
@@ -88,9 +83,7 @@ function makeApplication() {
     instances:
       applicationConceptSet.implementations(
         "mongo",
-        {
-          db,
-        },
+        { db },
       ),
 
     composition: {
@@ -106,26 +99,145 @@ function makeApplication() {
   });
 }
 
+async function register(
+  gateway: any,
+  username: string,
+): Promise<string> {
+  const registration =
+    valueOf(
+      (await gateway.invoke(
+        "/auth/register",
+        {
+          username,
+          password:
+            `${username}-password-123`,
+        },
+      )) as Result,
+    );
+
+  return registration.session as string;
+}
+
+async function connect(
+  gateway: any,
+  requesterSession: string,
+  recipientSession: string,
+  recipient: string,
+) {
+  const request =
+    valueOf(
+      (await gateway.invoke(
+        "/connections/request",
+        {
+          session:
+            requesterSession,
+          recipient,
+        },
+      )) as Result,
+    ).id as string;
+
+  valueOf(
+    (await gateway.invoke(
+      "/connections/accept",
+      {
+        session:
+          recipientSession,
+        request,
+      },
+    )) as Result,
+  );
+}
+
+async function createSharedIntention(
+  gateway: any,
+  firstSession: string,
+  secondSession: string,
+) {
+  valueOf(
+    (await gateway.invoke(
+      "/intentions/express",
+      {
+        session:
+          firstSession,
+        name:
+          "Wally's Cafe",
+        reference:
+          "https://example.com/wallys-cafe",
+      },
+    )) as Result,
+  );
+
+  valueOf(
+    (await gateway.invoke(
+      "/intentions/express",
+      {
+        session:
+          secondSession,
+        name:
+          "wallys cafe",
+        reference:
+          "https://instagram.com/wallys-cafe",
+      },
+    )) as Result,
+  );
+
+  await gateway.whenIdle();
+
+  const home =
+    valueOf(
+      (await gateway.invoke(
+        "/home",
+        {
+          session:
+            firstSession,
+        },
+      )) as Result,
+    ).home;
+
+  expect(
+    home.sharedIntentions,
+  ).toHaveLength(1);
+
+  return home.sharedIntentions[0];
+}
+
+async function proposeSharedPlan(
+  gateway: any,
+  organizerSession: string,
+  item: string,
+) {
+  return valueOf(
+    (await gateway.invoke(
+      "/plans/propose",
+      {
+        session:
+          organizerSession,
+        item,
+        participants: [
+          "josie",
+          "marie",
+        ],
+        time:
+          "Friday at 8 PM",
+      },
+    )) as Result,
+  ).id as string;
+}
+
 describe(
-  "WeShould application journey",
+  "WeShould application journeys",
   () => {
-    beforeAll(
-      async () => {
-        await client.connect();
-      },
-    );
+    beforeAll(async () => {
+      await client.connect();
+    });
 
-    beforeEach(
-      async () => {
-        await db.dropDatabase();
-      },
-    );
+    beforeEach(async () => {
+      await db.dropDatabase();
+    });
 
-    afterAll(
-      async () => {
-        await client.close();
-      },
-    );
+    afterAll(async () => {
+      await client.close();
+    });
 
     test(
       "independent intentions become a committed and completed plan",
@@ -138,200 +250,45 @@ describe(
             application,
           });
 
-        const josieRegistration =
-          valueOf(
-            (await gateway.invoke(
-              "/auth/register",
-              {
-                username:
-                  "josie",
-
-                password:
-                  "josie-password-123",
-              },
-            )) as Result,
-          );
-
-        const marieRegistration =
-          valueOf(
-            (await gateway.invoke(
-              "/auth/register",
-              {
-                username:
-                  "marie",
-
-                password:
-                  "marie-password-123",
-              },
-            )) as Result,
-          );
-
         const josieSession =
-          josieRegistration.session as string;
+          await register(
+            gateway,
+            "josie",
+          );
 
         const marieSession =
-          marieRegistration.session as string;
+          await register(
+            gateway,
+            "marie",
+          );
 
-        expect(
+        await connect(
+          gateway,
           josieSession,
-        ).toBeTruthy();
-
-        expect(
           marieSession,
-        ).toBeTruthy();
-
-        const connectionRequest =
-          valueOf(
-            (await gateway.invoke(
-              "/connections/request",
-              {
-                session:
-                  josieSession,
-
-                recipient:
-                  "marie",
-              },
-            )) as Result,
-          );
-
-        const request =
-          connectionRequest.id as string;
-
-        expect(
-          request,
-        ).toBeTruthy();
-
-        valueOf(
-          (await gateway.invoke(
-            "/connections/accept",
-            {
-              session:
-                marieSession,
-
-              request,
-            },
-          )) as Result,
+          "marie",
         );
-
-        const josieHomeAfterConnection =
-          valueOf(
-            (await gateway.invoke(
-              "/home",
-              {
-                session:
-                  josieSession,
-              },
-            )) as Result,
-          );
-
-        expect(
-          josieHomeAfterConnection
-            .home.connections,
-        ).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              peer:
-                "marie",
-            }),
-          ]),
-        );
-
-        valueOf(
-          (await gateway.invoke(
-            "/intentions/express",
-            {
-              session:
-                josieSession,
-
-              name:
-                "Wally's Cafe",
-
-              reference:
-                "https://example.com/wallys-cafe",
-            },
-          )) as Result,
-        );
-
-        valueOf(
-          (await gateway.invoke(
-            "/intentions/express",
-            {
-              session:
-                marieSession,
-
-              /*
-               * Different spelling and a different URL should
-               * still resolve to the same underlying Item.
-               */
-              name:
-                "wallys cafe",
-
-              reference:
-                "https://instagram.com/wallys-cafe",
-            },
-          )) as Result,
-        );
-
-        await gateway.whenIdle();
-
-        const josieHomeWithSharedIntention =
-          valueOf(
-            (await gateway.invoke(
-              "/home",
-              {
-                session:
-                  josieSession,
-              },
-            )) as Result,
-          );
 
         const shared =
-          josieHomeWithSharedIntention
-            .home
-            .sharedIntentions;
+          await createSharedIntention(
+            gateway,
+            josieSession,
+            marieSession,
+          );
 
-        expect(
-          shared,
-        ).toHaveLength(1);
-
-        expect(
-          shared[0],
-        ).toEqual(
+        expect(shared).toEqual(
           expect.objectContaining({
-            peer:
-              "marie",
-
-            name:
-              "Wally's Cafe",
+            peer: "marie",
+            name: "Wally's Cafe",
           }),
         );
 
-        const item =
-          shared[0].item as string;
-
-        const proposal =
-          valueOf(
-            (await gateway.invoke(
-              "/plans/propose",
-              {
-                session:
-                  josieSession,
-
-                item,
-
-                participants: [
-                  "josie",
-                  "marie",
-                ],
-
-                time:
-                  "Friday at 8 PM",
-              },
-            )) as Result,
-          );
-
         const plan =
-          proposal.id as string;
+          await proposeSharedPlan(
+            gateway,
+            josieSession,
+            shared.item as string,
+          );
 
         const josieProposedHome =
           valueOf(
@@ -342,36 +299,18 @@ describe(
                   josieSession,
               },
             )) as Result,
-          );
-
-        const josiePlan =
-          josieProposedHome
-            .home
-            .plans
-            .find(
-              (
-                candidate:
-                  Record<
-                    string,
-                    unknown
-                  >,
-              ) =>
-                candidate.plan ===
-                plan,
-            );
+          ).home;
 
         expect(
-          josiePlan,
+          josieProposedHome.plans.find(
+            (candidate: Record<string, unknown>) =>
+              candidate.plan === plan,
+          ),
         ).toEqual(
           expect.objectContaining({
-            organizer:
-              "josie",
-
-            response:
-              "ACCEPTED",
-
-            status:
-              "PROPOSED",
+            organizer: "josie",
+            response: "ACCEPTED",
+            status: "PROPOSED",
           }),
         );
 
@@ -384,36 +323,18 @@ describe(
                   marieSession,
               },
             )) as Result,
-          );
-
-        const mariePlan =
-          marieProposedHome
-            .home
-            .plans
-            .find(
-              (
-                candidate:
-                  Record<
-                    string,
-                    unknown
-                  >,
-              ) =>
-                candidate.plan ===
-                plan,
-            );
+          ).home;
 
         expect(
-          mariePlan,
+          marieProposedHome.plans.find(
+            (candidate: Record<string, unknown>) =>
+              candidate.plan === plan,
+          ),
         ).toEqual(
           expect.objectContaining({
-            organizer:
-              "josie",
-
-            response:
-              "PENDING",
-
-            status:
-              "PROPOSED",
+            organizer: "josie",
+            response: "PENDING",
+            status: "PROPOSED",
           }),
         );
 
@@ -423,9 +344,7 @@ describe(
             {
               session:
                 marieSession,
-
               plan,
-
               response:
                 "ACCEPTED",
             },
@@ -443,30 +362,16 @@ describe(
                   josieSession,
               },
             )) as Result,
-          );
-
-        const committedPlan =
-          committedHome
-            .home
-            .plans
-            .find(
-              (
-                candidate:
-                  Record<
-                    string,
-                    unknown
-                  >,
-              ) =>
-                candidate.plan ===
-                plan,
-            );
+          ).home;
 
         expect(
-          committedPlan,
+          committedHome.plans.find(
+            (candidate: Record<string, unknown>) =>
+              candidate.plan === plan,
+          ),
         ).toEqual(
           expect.objectContaining({
-            status:
-              "COMMITTED",
+            status: "COMMITTED",
           }),
         );
 
@@ -476,7 +381,6 @@ describe(
             {
               session:
                 josieSession,
-
               plan,
             },
           )) as Result,
@@ -493,7 +397,7 @@ describe(
                   josieSession,
               },
             )) as Result,
-          );
+          ).home;
 
         const marieFinalHome =
           valueOf(
@@ -504,49 +408,375 @@ describe(
                   marieSession,
               },
             )) as Result,
-          );
+          ).home;
 
         expect(
-          josieFinalHome
-            .home
-            .intentions,
+          josieFinalHome.intentions,
         ).toHaveLength(0);
 
         expect(
-          marieFinalHome
-            .home
-            .intentions,
+          marieFinalHome.intentions,
         ).toHaveLength(0);
 
         expect(
-          josieFinalHome
-            .home
-            .sharedIntentions,
+          josieFinalHome.sharedIntentions,
         ).toHaveLength(0);
 
-        const completedPlan =
-          josieFinalHome
-            .home
-            .plans
-            .find(
-              (
-                candidate:
-                  Record<
-                    string,
-                    unknown
-                  >,
-              ) =>
-                candidate.plan ===
-                plan,
-            );
-
         expect(
-          completedPlan,
+          josieFinalHome.plans.find(
+            (candidate: Record<string, unknown>) =>
+              candidate.plan === plan,
+          ),
         ).toEqual(
           expect.objectContaining({
-            status:
-              "COMPLETED",
+            status: "COMPLETED",
           }),
+        );
+      },
+    );
+
+    test(
+      "someone other than the recipient cannot accept a connection request",
+      async () => {
+        const application =
+          makeApplication();
+
+        const gateway =
+          createGateway<any>({
+            application,
+          });
+
+        const josieSession =
+          await register(
+            gateway,
+            "josie",
+          );
+
+        const marieSession =
+          await register(
+            gateway,
+            "marie",
+          );
+
+        const alexSession =
+          await register(
+            gateway,
+            "alex",
+          );
+
+        const request =
+          valueOf(
+            (await gateway.invoke(
+              "/connections/request",
+              {
+                session:
+                  josieSession,
+                recipient:
+                  "marie",
+              },
+            )) as Result,
+          ).id as string;
+
+        expectFailure(
+          (await gateway.invoke(
+            "/connections/accept",
+            {
+              session:
+                alexSession,
+              request,
+            },
+          )) as Result,
+        );
+
+        const marieHome =
+          valueOf(
+            (await gateway.invoke(
+              "/home",
+              {
+                session:
+                  marieSession,
+              },
+            )) as Result,
+          ).home;
+
+        expect(
+          marieHome.pendingRequests,
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              request,
+              requester: "josie",
+            }),
+          ]),
+        );
+
+        expect(
+          marieHome.connections,
+        ).toHaveLength(0);
+      },
+    );
+
+    test(
+      "a nonparticipant cannot respond to or cancel another pair's plan",
+      async () => {
+        const application =
+          makeApplication();
+
+        const gateway =
+          createGateway<any>({
+            application,
+          });
+
+        const josieSession =
+          await register(
+            gateway,
+            "josie",
+          );
+
+        const marieSession =
+          await register(
+            gateway,
+            "marie",
+          );
+
+        const alexSession =
+          await register(
+            gateway,
+            "alex",
+          );
+
+        await connect(
+          gateway,
+          josieSession,
+          marieSession,
+          "marie",
+        );
+
+        const shared =
+          await createSharedIntention(
+            gateway,
+            josieSession,
+            marieSession,
+          );
+
+        const plan =
+          await proposeSharedPlan(
+            gateway,
+            josieSession,
+            shared.item as string,
+          );
+
+        expectFailure(
+          (await gateway.invoke(
+            "/plans/respond",
+            {
+              session:
+                alexSession,
+              plan,
+              response:
+                "ACCEPTED",
+            },
+          )) as Result,
+        );
+
+        expectFailure(
+          (await gateway.invoke(
+            "/plans/cancel",
+            {
+              session:
+                alexSession,
+              plan,
+            },
+          )) as Result,
+        );
+
+        const marieHome =
+          valueOf(
+            (await gateway.invoke(
+              "/home",
+              {
+                session:
+                  marieSession,
+              },
+            )) as Result,
+          ).home;
+
+        expect(
+          marieHome.plans.find(
+            (candidate: Record<string, unknown>) =>
+              candidate.plan === plan,
+          ),
+        ).toEqual(
+          expect.objectContaining({
+            status: "PROPOSED",
+            response: "PENDING",
+          }),
+        );
+      },
+    );
+
+    test(
+      "cancelling a proposal preserves the weaker underlying intentions",
+      async () => {
+        const application =
+          makeApplication();
+
+        const gateway =
+          createGateway<any>({
+            application,
+          });
+
+        const josieSession =
+          await register(
+            gateway,
+            "josie",
+          );
+
+        const marieSession =
+          await register(
+            gateway,
+            "marie",
+          );
+
+        await connect(
+          gateway,
+          josieSession,
+          marieSession,
+          "marie",
+        );
+
+        const shared =
+          await createSharedIntention(
+            gateway,
+            josieSession,
+            marieSession,
+          );
+
+        const plan =
+          await proposeSharedPlan(
+            gateway,
+            josieSession,
+            shared.item as string,
+          );
+
+        valueOf(
+          (await gateway.invoke(
+            "/plans/cancel",
+            {
+              session:
+                josieSession,
+              plan,
+            },
+          )) as Result,
+        );
+
+        await gateway.whenIdle();
+
+        const josieHome =
+          valueOf(
+            (await gateway.invoke(
+              "/home",
+              {
+                session:
+                  josieSession,
+              },
+            )) as Result,
+          ).home;
+
+        const marieHome =
+          valueOf(
+            (await gateway.invoke(
+              "/home",
+              {
+                session:
+                  marieSession,
+              },
+            )) as Result,
+          ).home;
+
+        expect(
+          josieHome.intentions,
+        ).toHaveLength(1);
+
+        expect(
+          marieHome.intentions,
+        ).toHaveLength(1);
+
+        expect(
+          josieHome.sharedIntentions,
+        ).toHaveLength(1);
+
+        expect(
+          josieHome.plans.find(
+            (candidate: Record<string, unknown>) =>
+              candidate.plan === plan,
+          ),
+        ).toEqual(
+          expect.objectContaining({
+            status: "CANCELLED",
+          }),
+        );
+      },
+    );
+
+    test(
+      "signing out invalidates the session",
+      async () => {
+        const application =
+          makeApplication();
+
+        const gateway =
+          createGateway<any>({
+            application,
+          });
+
+        const josieSession =
+          await register(
+            gateway,
+            "josie",
+          );
+
+        valueOf(
+          (await gateway.invoke(
+            "/auth/sign-out",
+            {
+              session:
+                josieSession,
+            },
+          )) as Result,
+        );
+
+        expectFailure(
+          (await gateway.invoke(
+            "/home",
+            {
+              session:
+                josieSession,
+            },
+          )) as Result,
+        );
+      },
+    );
+
+    test(
+      "an unknown session cannot read home state",
+      async () => {
+        const application =
+          makeApplication();
+
+        const gateway =
+          createGateway<any>({
+            application,
+          });
+
+        expectFailure(
+          (await gateway.invoke(
+            "/home",
+            {
+              session:
+                "missing-session",
+            },
+          )) as Result,
         );
       },
     );

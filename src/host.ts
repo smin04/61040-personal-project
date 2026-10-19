@@ -30,7 +30,6 @@ const bundle = await Bun.build({
       new URL("./web/client.ts", import.meta.url),
     ),
   ],
-
   target: "browser",
   minify: false,
 });
@@ -47,13 +46,30 @@ if (
 const javascript =
   await bundle.outputs[0].text();
 
+const hostname =
+  process.env.HOST ?? "0.0.0.0";
+
+const port = Number(
+  process.env.PORT ?? "3000",
+);
+
 const server = Bun.serve({
-  hostname: "localhost",
-  port: 3000,
+  hostname,
+  port,
 
   async fetch(request) {
     const url = new URL(request.url);
     const path = url.pathname;
+
+    if (path === "/health") {
+      return new Response("ok", {
+        status: 200,
+        headers: {
+          "Content-Type":
+            "text/plain; charset=utf-8",
+        },
+      });
+    }
 
     if (
       path === "/api" ||
@@ -75,35 +91,26 @@ const server = Bun.serve({
       path === "/" ||
       path === "/index.html"
     ) {
-      return new Response(
-        html,
-        {
-          headers: {
-            "Content-Type":
-              "text/html; charset=utf-8",
-          },
+      return new Response(html, {
+        headers: {
+          "Content-Type":
+            "text/html; charset=utf-8",
         },
-      );
+      });
     }
 
     if (path === "/app.js") {
-      return new Response(
-        javascript,
-        {
-          headers: {
-            "Content-Type":
-              "text/javascript; charset=utf-8",
-          },
+      return new Response(javascript, {
+        headers: {
+          "Content-Type":
+            "text/javascript; charset=utf-8",
         },
-      );
+      });
     }
 
-    return new Response(
-      "Not found",
-      {
-        status: 404,
-      },
-    );
+    return new Response("Not found", {
+      status: 404,
+    });
   },
 });
 
