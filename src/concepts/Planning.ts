@@ -9,6 +9,11 @@ export class InvalidResponse extends Error {}
 export class NotAllAccepted extends Error {}
 export class PlanClosed extends Error {}
 export class PlanNotCommitted extends Error {}
+export class IneligiblePlanParticipants extends Error {}
+
+export type ProposalEligibility = (details: {
+  organizer: string; item: string; participants: string[];
+}) => Promise<boolean>;
 
 type Response = "PENDING" | "ACCEPTED" | "DECLINED";
 
@@ -42,6 +47,7 @@ export class PlanningConcept {
     db: Db,
     namespace = "Planning",
     private readonly freshID: () => string = () => crypto.randomUUID(),
+    private readonly eligible?: ProposalEligibility,
   ) {
     this.plans = db.collection<PlanDocument>(
       `${namespace}.plans`,
@@ -84,6 +90,10 @@ export class PlanningConcept {
       throw new TooFewParticipants(
         "A plan must have at least two participants.",
       );
+    }
+
+    if (this.eligible && !(await this.eligible({ organizer, item, participants: uniqueParticipants }))) {
+      throw new IneligiblePlanParticipants("Every participant must independently save the activity and be connected to the organizer.");
     }
 
     const plan = this.freshID();
@@ -288,8 +298,10 @@ export class PlanningConcept {
 
   async complete({
     plan,
+    user,
   }: {
     plan: string;
+    user: string;
   }): Promise<Record<string, never>> {
     this.ready ??= Promise.all([
       this.responses.createIndex(
@@ -308,6 +320,10 @@ export class PlanningConcept {
       throw new PlanNotFound(
         "There is no such plan.",
       );
+    }
+
+    if (!foundPlan.participants.includes(user)) {
+      throw new NotParticipant("Only a participant can complete this plan.");
     }
 
     if (foundPlan.status !== "COMMITTED") {

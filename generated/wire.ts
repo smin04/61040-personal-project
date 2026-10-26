@@ -164,7 +164,7 @@ export type WeShouldWire = {
     output: {
       "id": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Planning"]["complete"]>[0], ["plan"]>>;
     };
-    error: { error: AppWideError | "INTENTION_NOT_FOUND" | "INVALID_INPUT" | "PLAN_NOT_COMMITTED" | "PLAN_NOT_FOUND" | "UNKNOWN_SESSION" };
+    error: { error: AppWideError | "INTENTION_NOT_FOUND" | "INVALID_INPUT" | "NOT_PARTICIPANT" | "PLAN_NOT_COMMITTED" | "PLAN_NOT_FOUND" | "UNKNOWN_SESSION" };
   };
   "/plans/propose": {
     input: {
@@ -176,7 +176,7 @@ export type WeShouldWire = {
     output: {
       "id": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["propose"]>>, ["plan"]>>;
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "ORGANIZER_NOT_PARTICIPANT" | "TOO_FEW_PARTICIPANTS" | "UNKNOWN_SESSION" };
+    error: { error: AppWideError | "INELIGIBLE_PLAN_PARTICIPANTS" | "INVALID_INPUT" | "ORGANIZER_NOT_PARTICIPANT" | "TOO_FEW_PARTICIPANTS" | "UNKNOWN_SESSION" };
   };
   "/plans/respond": {
     input: {
@@ -345,7 +345,7 @@ export type WeShouldWireHttp = {
     output: {
       "id": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Planning"]["complete"]>[0], ["plan"]>>;
     };
-    error: { error: HttpAppWideError | "CONFLICT" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "CONFLICT" | "FORBIDDEN" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
   };
   "/plans/propose": {
     input: {
@@ -357,7 +357,7 @@ export type WeShouldWireHttp = {
     output: {
       "id": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["propose"]>>, ["plan"]>>;
     };
-    error: { error: HttpAppWideError | "INVALID_REQUEST" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "UNAUTHORIZED" };
   };
   "/plans/respond": {
     input: {

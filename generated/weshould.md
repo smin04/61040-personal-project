@@ -92,6 +92,7 @@ Defined in [Planning](../design/concepts/Planning.md), line 1.
 - `propose(organizer: User, item: Item, participants: ParticipantSet, time: String) : returns (plan: Plan)`
   - Refuses `ORGANIZER_NOT_PARTICIPANT`: The organizer must be included among the participants.
   - Refuses `TOO_FEW_PARTICIPANTS`: A plan must have at least two participants.
+  - Refuses `INELIGIBLE_PLAN_PARTICIPANTS`: Every participant must independently save the activity and be connected to the organizer.
 - `respond(user: User, plan: Plan, response: Response) : returns ()`
   - Refuses `PLAN_NOT_FOUND`: There is no such plan.
   - Refuses `PLAN_NOT_PROPOSED`: Responses may only be changed while a plan is proposed.
@@ -105,8 +106,9 @@ Defined in [Planning](../design/concepts/Planning.md), line 1.
   - Refuses `PLAN_NOT_FOUND`: There is no such plan.
   - Refuses `NOT_PARTICIPANT`: Only a participant may cancel this plan.
   - Refuses `PLAN_CLOSED`: A cancelled or completed plan cannot be cancelled again.
-- `complete(plan: Plan) : returns ()`
+- `complete(user: User, plan: Plan) : returns ()`
   - Refuses `PLAN_NOT_FOUND`: There is no such plan.
+  - Refuses `NOT_PARTICIPANT`: Only a participant can complete this plan.
   - Refuses `PLAN_NOT_COMMITTED`: Only a committed plan may be completed.
 
 #### Queries
@@ -557,9 +559,8 @@ Authored path: `Application.Plans.CompletePlan`.
 when Sessioning.current (session, subject: user), asked by Application.Plans.CompletePlan
 where
   earlier, RequestBoundary.request (path: "/plans/complete", plan, requestId, session)
-  Planning._responses (plan) has (user)
 then
-  Planning.complete (plan)
+  Planning.complete (plan, user)
 ```
 
 ### Application.Plans.CompletePlan#3
@@ -569,7 +570,7 @@ Authored path: `Application.Plans.CompletePlan`.
 - Covered by [Application](../design/compositions/Application.md), line 28.
 
 ```reaction
-when Planning.complete (plan), asked by Application.Plans.CompletePlan#2
+when Planning.complete (plan, user), asked by Application.Plans.CompletePlan#2
 where
   earlier, RequestBoundary.request (path: "/plans/complete", plan, requestId, session)
 then

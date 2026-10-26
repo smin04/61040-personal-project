@@ -78,5 +78,8 @@ export const weShouldPolicy =
 
       PLAN_NOT_COMMITTED:
         "CONFLICT",
+
+      INELIGIBLE_PLAN_PARTICIPANTS:
+        "FORBIDDEN",
     },
   });

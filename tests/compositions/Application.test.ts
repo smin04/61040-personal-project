@@ -8,6 +8,7 @@ import {
 } from "bun:test";
 
 import { MongoClient } from "mongodb";
+import { createProposalEligibility } from "../../src/application/proposalEligibility.ts";
 
 import {
   assemble,
@@ -83,7 +84,7 @@ function makeApplication() {
     instances:
       applicationConceptSet.implementations(
         "mongo",
-        { db },
+        { db, proposalEligibility: createProposalEligibility(db) },
       ),
 
     composition: {
@@ -780,5 +781,28 @@ describe(
         );
       },
     );
+
+    test("a stranger cannot propose even with a matching saved item", async () => {
+      const gateway = createGateway<any>({ application: makeApplication() });
+      const josie = await register(gateway, "josie");
+      const marie = await register(gateway, "marie");
+      valueOf((await gateway.invoke("/intentions/express", { session: josie, name: "Concert", reference: "https://example.com/concert" })) as Result);
+      valueOf((await gateway.invoke("/intentions/express", { session: marie, name: "Concert", reference: "https://example.com/concert" })) as Result);
+      const home = valueOf((await gateway.invoke("/home", { session: josie })) as Result).home;
+      const item = home.intentions[0].item;
+      expectFailure((await gateway.invoke("/plans/propose", { session: josie, item, participants: ["josie", "marie"], time: "Tomorrow" })) as Result);
+    });
+
+    test("a connected friend must independently save the activity", async () => {
+      const gateway = createGateway<any>({ application: makeApplication() });
+      const josie = await register(gateway, "josie");
+      const marie = await register(gateway, "marie");
+      await connect(gateway, josie, marie, "marie");
+      valueOf((await gateway.invoke("/intentions/express", { session: josie, name: "Concert", reference: "https://example.com/concert" })) as Result);
+      const home = valueOf((await gateway.invoke("/home", { session: josie })) as Result).home;
+      const item = home.intentions[0].item;
+      expectFailure((await gateway.invoke("/plans/propose", { session: josie, item, participants: ["josie", "marie"], time: "Tomorrow" })) as Result);
+    });
+
   },
 );

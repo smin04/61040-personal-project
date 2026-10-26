@@ -7,6 +7,7 @@ import { composition as sessionsComposition } from "./compositions/Sessions.ts";
 import { composition as weShouldComposition } from "./compositions/WeShould.ts";
 
 import { db } from "./db.ts";
+import { createProposalEligibility } from "./application/proposalEligibility.ts";
 
 export function assembleApplication() {
   return assemble({
@@ -16,6 +17,7 @@ export function assembleApplication() {
       "mongo",
       {
         db,
+        proposalEligibility: createProposalEligibility(db),
       },
     ),
 

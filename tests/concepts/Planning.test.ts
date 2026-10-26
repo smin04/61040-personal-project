@@ -447,7 +447,7 @@ describe("Planning", () => {
     });
 
     await expect(
-      concept.complete({ plan }),
+      concept.complete({ plan, user: "josie" }),
     ).rejects.toBeInstanceOf(
       PlanNotCommitted,
     );
@@ -469,7 +469,7 @@ describe("Planning", () => {
 
     await concept.commit({ plan });
 
-    await concept.complete({ plan });
+    await concept.complete({ plan, user: "josie" });
 
     const result = await concept._get({
       plan,

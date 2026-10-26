@@ -58,6 +58,9 @@ propose(organizer: User, item: Item, participants: ParticipantSet, time: String)
   where participants contains fewer than two distinct users
   then
     refuses TOO_FEW_PARTICIPANTS "A plan must have at least two participants."
+  where an optional application-provided eligibility check rejects the proposed participants
+  then
+    refuses INELIGIBLE_PLAN_PARTICIPANTS "Every participant must independently save the activity and be connected to the organizer."
   where organizer is in participants and participants contains at least two distinct users
   then
     add a new plan with organizer, item, time, participants, and status PROPOSED
@@ -114,10 +117,13 @@ cancel(user: User, plan: Plan) : returns ()
     set plan's status to CANCELLED
     returns
 
-complete(plan: Plan) : returns ()
+complete(user: User, plan: Plan) : returns ()
   where plan is not in Plans
   then
     refuses PLAN_NOT_FOUND "There is no such plan."
+  where plan is in Plans and user is not a participant
+  then
+    refuses NOT_PARTICIPANT "Only a participant can complete this plan."
   where plan is in Plans and plan's status is not COMMITTED
   then
     refuses PLAN_NOT_COMMITTED "Only a committed plan may be completed."

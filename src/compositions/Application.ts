@@ -712,17 +712,10 @@ const CompletePlan =
           }),
         )
         .then(
-          where(
-            Planning._responses({
-              plan,
-            }).is({
-              user,
-            }),
-          ).then(
-            Planning.complete({
-              plan,
-            }).responds({}),
-          ),
+          Planning.complete({
+            plan,
+            user,
+          }).responds({}),
         )
         .then(
           respond({

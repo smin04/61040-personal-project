@@ -384,6 +384,12 @@ const app = createApp({
     const activityName = ref("");
     const activityUrl = ref("");
 
+    // Incoming links are suggestions, never automatically saved.
+    const incoming = new URLSearchParams(window.location.search).get("share");
+    if (incoming && validHttpUrl(incoming)) {
+      activityUrl.value = incoming;
+    }
+
     const selectedPlanItem =
       ref("");
 
