@@ -6,3 +6,11 @@ node_modules/
 .DS_Store
 node_modules/
 dist/
+**/xcuserdata/
+**/*.xcuserstate
+**/.build/
+**/DerivedData/
+**/build/
+**/*.mobileprovision
+**/*.p12
+**/.DS_Store
