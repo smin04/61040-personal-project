@@ -1,35 +1,33 @@
 # WeShould — P4 Design Summary
 
-## Problem and final experience
+## Problem and experience
 
-“We should go sometime” often expresses genuine interest but rarely becomes a plan. WeShould separates **saving an idea** from **inviting someone**: people independently save activities, discover a match when a connection has saved the same thing, and only then choose a time. The final web journey is **register → connect → save → match → propose → accept → commit → complete**. Declining or cancelling a proposal does not erase the original interest.
+“We should do that sometime” is often sincere but too weak to initiate scheduling. WeShould preserves this early interest without treating it as a commitment. A user saves an activity and its link privately; when a connection independently saves the same activity, the app reveals that overlap. Only then does it ask someone to propose a time. The implemented flow is **register → connect → save → match → propose → accept → commit → complete**. Cancellation does not erase interest, while completion resolves it.
 
-## How the design evolved
+## Design development
 
-- **P1 — Concept design.** The initial design distinguished an activity's identity (`Resolving`), an individual's willingness (`Intending`), social ties (`Connecting`), and concrete plans (`Planning`). `Authenticating` and `Sessioning` supply identity and session state. This separation matters because an intention is not a commitment.
-- **P3 — Working beta and visual language.** The complete two-person journey became functional, with manual activity-name and HTTP(S) URL entry rather than in-app discovery. Different URLs can resolve to a shared activity identity. The home view combines saved ideas, connected users' overlapping interests, and proposed or committed plans. The interface uses a warm ivory and plum foundation, with prominent calls to action and distinct feedback for successful and destructive operations.
-- **P4 — Access control and completion.** The existing concepts and plan lifecycle remain intact. At the application boundary, an authenticated session determines the acting user. The proposal path now requires a connection and an independent active intention from each participant; this eligibility rule uses public `Connecting` and `Intending` queries through an application-level policy rather than letting `Planning` read their storage. `Planning.complete` also requires the acting participant and rejects completion by an outsider instead of silently leaving the endpoint unresolved. Rejection scenarios were added to the integration tests.
+The original concept design separated four different kinds of state: an activity's identity, an individual's willingness, a reciprocal social connection, and a concrete plan. `Authenticating` and `Sessioning` provide account and session infrastructure. This boundary has remained central throughout the project: a saved idea is not an invitation, a shared idea is not yet an agreement, and a proposal is not committed until its participants accept.
 
-## Concept composition and reactions
+The P3 beta implemented the two-person journey with manual activity names and HTTP(S) links. Discovery remained external to WeShould. The interface adopted a warm ivory and plum palette, contrasting editorial display typography with direct controls and clearer feedback for invalid inputs or destructive actions. Its hierarchy emphasizes the moment independent intentions become a shared opportunity.
 
-The concepts retain distinct responsibilities. `Resolving` converges references into activities; `Intending` records willingness; `Connecting` manages reciprocal relationships; `Planning` owns proposal state, participant responses, and lifecycle transitions. A derived shared-intention view joins connections and active intentions—there is no extra stored “match” object. A reaction commits a proposal once all participants have accepted. A separate completion reaction withdraws the participants' active intentions; cancellation has **no** withdrawal reaction, so someone can pursue the same idea another time.
+P4 concentrated on finishing the planning behavior and enforcing access controls across the complete journey. The proposal path now checks that each invitee is connected to the organizer and that every participant has independently saved the relevant activity. This check is implemented at the application boundary using public `Connecting` and `Intending` queries, rather than allowing `Planning` to depend on their internal storage. Plan completion also requires an acting participant, closing an authorization gap in the original flow. Group proposals reuse the existing participant model; invitees do not have to be connected to one another.
 
-The home endpoint gathers each user's relevant state for the UI. Authentication is resolved before user-scoped operations, and plan response, cancellation, and completion enforce participant membership. This division keeps the underlying concepts independently testable while placing product-specific coordination at the application boundary.
+## Concepts, composition, and reactions
+
+`Resolving` gives references a usable activity identity. `Intending` owns saved willingness; `Connecting` owns social ties; `Planning` owns proposals, responses, commitment, cancellation, and completion. Compositions coordinate these concepts. A shared-interest view is derived from current connections and intentions rather than stored as another concept. A reaction commits a plan once all its participants accept. Completion withdraws related active intentions, but cancellation deliberately leaves them intact so participants may try the activity later.
+
+User-scoped application actions derive identity from the active session. Eligibility and membership checks prevent an outsider from proposing plans on behalf of disconnected users, responding to someone else's plan, or completing a plan in which they do not participate. The separation preserves reusable concept behavior while enforcing WeShould-specific policies at the composition boundary.
 
 ## Interaction decisions and tradeoffs
 
-- **Low-pressure capture.** Saving a link does not immediately notify someone or require a date. The interface makes the transition from interest to commitment explicit.
-- **Deliberate matching.** Shared interests appear only for connections that independently saved the activity; unrelated users do not receive a social match.
-- **Clear error behavior.** Invalid URLs, duplicate actions, invalid sessions, and unauthorized plan operations should fail visibly rather than appear to succeed. Session-derived identities prevent callers from simply claiming another username.
-- **Mobile sharing.** The web flow remains the reliable baseline. Native iOS sharing is a separate planned enhancement, not part of the submitted web build. It would transfer a shared URL into the capture form for user confirmation; an Xcode target, signing, and on-device payload testing are still needed.
-- **Eligibility timing.** Proposal eligibility is checked before creation, but changes to connections or intentions are not locked into the same transaction. Stronger guarantees would require coordinating state changes atomically; that complexity is disproportionate to the current scope.
+The capture interaction is intentionally low-pressure: saving a link neither requires a date nor sends an invitation. Requiring an independently saved activity from each participant makes a match more meaningful than an arbitrary recommendation, although it limits spontaneous invitations. The application currently matches resolved activity identities rather than attempting to infer that unrelated posts discuss the same place.
 
-## Testing and P5 readiness
+The iOS companion adds a second entry point without changing the underlying concepts. Its Share Extension appears in the iOS Share Sheet and provides an activity and link form that communicates with the deployed backend. The extension asks for WeShould credentials because its session is separate from the embedded web view's session; shared authenticated state would require a more developed native session design. Share Sheet registration has been observed on a physical iPhone, while successful end-to-end share-to-save and third-party host-app compatibility have not been established in the documented test results.
 
-The local suite completed with **87 passing tests and no failures** (P4, October 26, 2026), covering concept operations and end-to-end composition journeys. The added proposal tests reject a stranger despite matching saved interest and reject a connected friend who has not independently saved the item. Existing tests also cover session invalidation, connection-request permissions, plan responses, cancellation, and completion.
+Proposal eligibility is checked before creation but is not an atomic transaction with connection and intention updates. That is a conscious implementation limit: it keeps the concepts and composition simpler, while leaving a narrow possibility of state changes between validation and creation.
 
-## Reference materials
+## Validation and remaining scope
 
-- [Concept specifications](concepts/) and [application composition](compositions/Application.md)
-- [WeShould reactions](compositions/WeShould.md) and [P3 user journey](p3-user-journey.md)
-- [P2 implementation notes](p2-notes.md)
+The P4 local suite was reported at **87 passing tests** on October 26, 2026. Tests cover concept operations, planning journeys, session permissions, proposal eligibility, participant-restricted operations, cancellation, and completion. In particular, proposal validation rejects both a disconnected user with matching interest and a connected user who has not independently saved the activity. Local tests do not alone establish deployment persistence, every mobile interaction, or successful native capture. These remain distinct from verified local behavior.
+
+The final design keeps the product's central distinction intact: intention is lightweight and personal; a plan is explicit and mutual.
