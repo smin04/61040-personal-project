@@ -66,6 +66,7 @@ const Home =
         planName,
         planReference,
         planOrganizer,
+        planParticipants,
         planResponse,
         time,
         status,
@@ -192,6 +193,8 @@ const Home =
               }).is({
                 organizer:
                   planOrganizer,
+                participants:
+                  planParticipants,
               }),
 
               Planning._responses({
@@ -228,6 +231,9 @@ const Home =
 
               organizer:
                 planOrganizer,
+
+              participants:
+                planParticipants,
 
               response:
                 planResponse,

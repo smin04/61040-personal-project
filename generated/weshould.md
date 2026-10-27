@@ -202,7 +202,7 @@ Authored path: `Application.Home.Home`.
 - Covered by [Application](../design/compositions/Application.md), line 31.
 
 ```former
-Former "the home state for (user)" — inputs (user); bindings (connection, peer, request, requester, intention, intentionItem, intentionName, intentionReference, sharedPeer, sharedItem, sharedName, sharedReference, plan, planItem, planName, planReference, planOrganizer, planResponse, time, status); promises exactly one record — forms:
+Former "the home state for (user)" — inputs (user); bindings (connection, peer, request, requester, intention, intentionItem, intentionName, intentionReference, sharedPeer, sharedItem, sharedName, sharedReference, plan, planItem, planName, planReference, planOrganizer, planParticipants, planResponse, time, status); promises exactly one record — forms:
   a record of
     connections: each Connecting._connections (user) has (connection, peer)
       form a record of
@@ -220,13 +220,14 @@ Former "the home state for (user)" — inputs (user); bindings (connection, peer
         request
         requester
     plans: each Planning._forUser (user) has (item: planItem, plan, status, time)
-      where Planning._get (plan) has (organizer: planOrganizer)
+      where Planning._get (plan) has (organizer: planOrganizer, participants: planParticipants)
       where Planning._responses (plan) has (response: planResponse, user)
       where Resolving._get (item: planItem) has (name: planName, reference: planReference)
       form a record of
         item: planItem
         name: planName
         organizer: planOrganizer
+        participants: planParticipants
         plan
         reference: planReference
         response: planResponse

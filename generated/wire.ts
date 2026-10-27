@@ -119,6 +119,7 @@ export type WeShouldWire = {
           "item": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Resolving"]["_get"]>[0], ["item"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_forUser"]>>>, ["item"]>]>>;
           "name": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Resolving"]["_get"]>>>, ["name"]>>;
           "organizer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_get"]>>>, ["organizer"]>>;
+          "participants": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_get"]>>>, ["participants"]>>;
           "plan": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Planning"]["_get"]>[0], ["plan"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Planning"]["_responses"]>[0], ["plan"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_forUser"]>>>, ["plan"]>]>>;
           "reference": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Resolving"]["_get"]>>>, ["reference"]>>;
           "response": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_responses"]>>>, ["response"]>>;
@@ -300,6 +301,7 @@ export type WeShouldWireHttp = {
           "item": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Resolving"]["_get"]>[0], ["item"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_forUser"]>>>, ["item"]>]>>;
           "name": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Resolving"]["_get"]>>>, ["name"]>>;
           "organizer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_get"]>>>, ["organizer"]>>;
+          "participants": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_get"]>>>, ["participants"]>>;
           "plan": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Planning"]["_get"]>[0], ["plan"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Planning"]["_responses"]>[0], ["plan"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_forUser"]>>>, ["plan"]>]>>;
           "reference": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Resolving"]["_get"]>>>, ["reference"]>>;
           "response": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Planning"]["_responses"]>>>, ["response"]>>;

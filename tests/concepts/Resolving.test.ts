@@ -54,6 +54,18 @@ describe("Resolving", () => {
     await client.close();
   });
 
+  test("Instagram reel share parameters resolve to the same post", async () => {
+    const first = await concept.resolve({ reference: "https://www.instagram.com/reel/Cw123abc/?igsh=test" });
+    const second = await concept.resolve({ reference: "https://instagram.com/reels/Cw123abc/?utm_source=copy" });
+    expect(second.item).toBe(first.item);
+  });
+
+  test("TikTok variants with the same video ID resolve together", async () => {
+    const first = await concept.resolve({ reference: "https://www.tiktok.com/@one/video/7422222222222222222?is_from_webapp=1" });
+    const second = await concept.resolve({ reference: "https://m.tiktok.com/@other/video/7422222222222222222?share_id=x" });
+    expect(second.item).toBe(first.item);
+  });
+
   test(
     "resolving a new reference creates an item",
     async () => {

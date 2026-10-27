@@ -1,6 +1,7 @@
 import {
   createApp,
   onMounted,
+  computed,
   onUnmounted,
   ref,
 } from "vue/dist/vue.esm-bundler.js";
@@ -40,6 +41,7 @@ interface Plan {
   name: string;
   reference: string;
   organizer: string;
+  participants: string[];
   response: PlanResponse;
   time: string;
   status:
@@ -388,6 +390,8 @@ const app = createApp({
     const incoming = new URLSearchParams(window.location.search).get("share");
     if (incoming && validHttpUrl(incoming)) {
       activityUrl.value = incoming;
+      const sharedName = new URLSearchParams(window.location.search).get("name");
+      if (sharedName) activityName.value = sharedName.slice(0, 120);
     }
 
     const selectedPlanItem =
@@ -396,8 +400,8 @@ const app = createApp({
     const selectedPlanName =
       ref("");
 
-    const selectedPlanPeer =
-      ref("");
+    const selectedPlanPeers = ref<string[]>([]);
+    const selectedEligiblePeers = ref<string[]>([]);
 
     const planTime = ref("");
 
@@ -800,8 +804,18 @@ const app = createApp({
       );
     }
 
+    const groupedShared = computed(() => {
+      const groups = new Map<string, {item:string; name:string; reference:string; peers:string[]}>();
+      for (const shared of home.value?.sharedIntentions ?? []) {
+        const group = groups.get(shared.item) ?? {item:shared.item, name:shared.name, reference:shared.reference, peers:[]};
+        if (!group.peers.includes(shared.peer)) group.peers.push(shared.peer);
+        groups.set(shared.item, group);
+      }
+      return [...groups.values()];
+    });
+
     function choosePlan(
-      shared: SharedIntention,
+      shared: {item:string; name:string; reference:string; peers:string[]},
     ) {
       selectedPlanItem.value =
         shared.item;
@@ -809,8 +823,8 @@ const app = createApp({
       selectedPlanName.value =
         shared.name;
 
-      selectedPlanPeer.value =
-        shared.peer;
+      selectedEligiblePeers.value = [...shared.peers];
+      selectedPlanPeers.value = [...shared.peers];
 
       planTime.value = "";
       planError.value = "";
@@ -829,10 +843,25 @@ const app = createApp({
       );
     }
 
+    function toggleInvitee(peer: string) {
+      if (selectedPlanPeers.value.includes(peer)) {
+        selectedPlanPeers.value = selectedPlanPeers.value.filter(
+          (selected) => selected !== peer,
+        );
+      } else {
+        selectedPlanPeers.value = [...selectedPlanPeers.value, peer];
+      }
+    }
+
+    function displayParticipant(user: string): string {
+      return user === signedInUser.value ? "You" : `@${user}`;
+    }
+
     function clearPlanDraft() {
       selectedPlanItem.value = "";
       selectedPlanName.value = "";
-      selectedPlanPeer.value = "";
+      selectedPlanPeers.value = [];
+      selectedEligiblePeers.value = [];
       planTime.value = "";
       planError.value = "";
     }
@@ -843,7 +872,7 @@ const app = createApp({
           if (
             !signedInUser.value ||
             !selectedPlanItem.value ||
-            !selectedPlanPeer.value
+            selectedPlanPeers.value.length === 0
           ) {
             throw new Error(
               "Choose a shared activity first.",
@@ -863,7 +892,7 @@ const app = createApp({
                 selectedPlanItem.value,
               participants: [
                 signedInUser.value,
-                selectedPlanPeer.value,
+                ...selectedPlanPeers.value,
               ],
               time:
                 planTime.value.trim(),
@@ -1004,6 +1033,8 @@ const app = createApp({
     });
 
     return {
+      toggleInvitee,
+      displayParticipant,
       username,
       password,
       signedInUser,
@@ -1019,7 +1050,9 @@ const app = createApp({
       activityUrl,
       selectedPlanItem,
       selectedPlanName,
-      selectedPlanPeer,
+      selectedPlanPeers,
+      selectedEligiblePeers,
+      groupedShared,
       planTime,
       home,
       register,
@@ -1248,7 +1281,7 @@ const app = createApp({
           </div>
 
           <div class="summary-item accent-summary">
-            <span class="summary-number">{{ home?.sharedIntentions?.length || 0 }}</span>
+            <span class="summary-number">{{ groupedShared.length }}</span>
             <span class="summary-label">shared sparks</span>
           </div>
 
@@ -1265,11 +1298,11 @@ const app = createApp({
               <h2 class="section-title">There is a reason to make this real.</h2>
             </div>
 
-            <span class="count-badge">{{ home?.sharedIntentions?.length || 0 }}</span>
+            <span class="count-badge">{{ groupedShared.length }}</span>
           </div>
 
           <div
-            v-if="!home?.sharedIntentions?.length"
+            v-if="!groupedShared.length"
             class="empty-card match-empty"
           >
             <div class="empty-symbol">✦</div>
@@ -1283,16 +1316,16 @@ const app = createApp({
 
           <div v-else class="match-grid">
             <article
-              v-for="shared in home?.sharedIntentions || []"
-              :key="shared.peer + shared.item"
+              v-for="shared in groupedShared"
+              :key="shared.item"
               class="match-card"
             >
               <div class="match-badge">New overlap</div>
 
               <div class="match-people">
                 <span class="avatar avatar-you">{{ signedInUser?.slice(0, 1).toUpperCase() }}</span>
-                <span class="avatar avatar-peer">{{ shared.peer.slice(0, 1).toUpperCase() }}</span>
-                <span>You + @{{ shared.peer }}</span>
+                <span class="avatar avatar-peer">{{ shared.peers[0]?.slice(0, 1).toUpperCase() }}</span>
+                <span>You + {{ shared.peers.map(p => "@" + p).join(", ") }}</span>
               </div>
 
               <div class="match-name">{{ shared.name }}</div>
@@ -1482,7 +1515,7 @@ const app = createApp({
               <div class="eyebrow plum-eyebrow">MAKE IT REAL</div>
               <h2 class="section-title">Pick one concrete time.</h2>
               <p>
-                Planning only starts after the overlap is real. Pick a time that feels plausible, then let the other person say yes or no.
+                Planning starts after the overlap is real. Pick a time, invite one or more friends, and let everyone respond.
               </p>
             </div>
           </div>
@@ -1501,8 +1534,26 @@ const app = createApp({
             class="composer-panel"
           >
             <div class="selected-activity">
-              <div class="selected-topline">You + @{{ selectedPlanPeer }}</div>
+              <div class="selected-topline">You + {{ selectedPlanPeers.map(p => "@" + p).join(", ") }}</div>
               <div class="selected-name">{{ selectedPlanName }}</div>
+              <div class="group-invitees" role="group" aria-label="Invite friends">
+                <div class="group-invitees-title">Invite friends who saved this activity</div>
+                <div class="invitee-grid">
+                  <button
+                    v-for="peer in selectedEligiblePeers"
+                    :key="peer"
+                    type="button"
+                    class="invitee-pill"
+                    :class="{ 'invitee-pill-selected': selectedPlanPeers.includes(peer) }"
+                    :aria-pressed="selectedPlanPeers.includes(peer)"
+                    @click="toggleInvitee(peer)"
+                  >
+                    <span class="invitee-check" aria-hidden="true">{{ selectedPlanPeers.includes(peer) ? '✓' : '+' }}</span>
+                    <span>@{{ peer }}</span>
+                  </button>
+                </div>
+                <small class="invitee-help">Invitees do not need to know one another. Everyone must accept.</small>
+              </div>
               <div class="selected-caption">You already agree on the idea. Now just pick a time.</div>
             </div>
 
@@ -1535,7 +1586,7 @@ const app = createApp({
             <div class="composer-actions">
               <button
                 class="button spark-button propose-button"
-                :disabled="loading || !planTime.trim()"
+                :disabled="loading || !planTime.trim() || !selectedPlanPeers.length"
                 @click="proposePlan"
               >
                 Propose this time
@@ -1605,6 +1656,16 @@ const app = createApp({
               </div>
 
               <div class="plan-name">{{ plan.name }}</div>
+              <div class="plan-participants" aria-label="People invited to this plan">
+                <span v-for="participant in plan.participants || [plan.organizer]" :key="participant" class="participant-pill">
+                  <span class="participant-avatar" aria-hidden="true">{{ participant.slice(0, 1).toUpperCase() }}</span>
+                  {{ displayParticipant(participant) }}
+                </span>
+              </div>
+              <div v-if="plan.participants?.length > 2" class="plan-group-note">
+                Group plan · {{ plan.participants.length }} people invited
+              </div>
+
 
               <a
                 class="reference-link"
@@ -1623,7 +1684,7 @@ const app = createApp({
                 v-if="plan.status === 'PROPOSED' && plan.organizer === signedInUser"
                 class="plan-footer"
               >
-                <div class="waiting-copy">Waiting for the other person.</div>
+                <div class="waiting-copy">Waiting for invited people to respond.</div>
 
                 <button
                   class="button text-button compact-button"
@@ -1720,6 +1781,43 @@ const style =
   document.createElement("style");
 
 style.textContent = `
+
+  .group-invitees {
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 20px;
+    padding: 20px;
+    margin: 20px 0;
+    background: rgba(255,255,255,.04);
+  }
+  .group-invitees-title { font-weight: 750; color: #fff; margin-bottom: 14px; }
+  .invitee-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .invitee-pill {
+    appearance: none; display: inline-flex; align-items: center; gap: 10px;
+    min-height: 44px; padding: 8px 15px 8px 8px; border-radius: 100px;
+    border: 1px solid rgba(255,255,255,.22);
+    background: rgba(255,255,255,.1); color: #fff; cursor: pointer;
+    font: inherit; font-weight: 600; max-width: 100%; overflow-wrap: anywhere;
+  }
+  .invitee-pill-selected { border-color: var(--citron); background: rgba(215,242,58,.17); }
+  .invitee-pill:focus-visible { outline: 3px solid var(--citron); outline-offset: 3px; }
+  .invitee-check {
+    flex: 0 0 28px; width: 28px; height: 28px; display: grid; place-items: center;
+    background: rgba(255,255,255,.18); border-radius: 50%; font-size: 16px;
+  }
+  .invitee-pill-selected .invitee-check { background: var(--citron); color: var(--plum); }
+  .invitee-help { display: block; margin-top: 15px; color: rgba(255,255,255,.8); line-height: 1.4; }
+  .plan-participants { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .participant-pill {
+    display: inline-flex; align-items: center; gap: 7px; border-radius: 100px;
+    background: rgba(47,29,47,.08); color: var(--plum);
+    padding: 7px 12px; font-size: .9rem; font-weight: 650;
+  }
+  .participant-avatar {
+    display: grid; place-items: center; width: 23px; height: 23px;
+    border-radius: 50%; background: var(--lilac); font-size: .75rem;
+  }
+  .plan-group-note { font-size: .85rem; color: var(--muted); margin: 0 0 10px; }
+
   :root {
     --ivory: #f5f0e6;
     --paper: #fffdf8;
@@ -2926,3 +3024,5 @@ style.textContent = `
 `;
 
 document.head.appendChild(style);
+
+/* Group planning: multiple independently interested friends, one proposal. */

@@ -39,6 +39,17 @@ function normalizeReference(
       return trimmed;
     }
 
+    // Canonicalize stable post identities; never use a caption as a video ID.
+    // Short-link redirects cannot be identified offline and need the final URL.
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "instagram.com") {
+      const match = url.pathname.match(/^\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/);
+      if (match) return `https://instagram.com/${match[1] === "reels" ? "reel" : match[1]}/${match[2]}`;
+    }
+    if (host === "tiktok.com" || host === "m.tiktok.com") {
+      const match = url.pathname.match(/\/video\/(\d+)/);
+      if (match) return `https://www.tiktok.com/video/${match[1]}`;
+    }
     url.hash = "";
 
     url.hostname =
